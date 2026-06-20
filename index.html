@@ -978,6 +978,12 @@ function normalizeImageUrl(url) {
   const value = (url || '').trim();
   if (!value) return value;
 
+  const localImageFiles = {
+    'dji_fly_20260619_141816_0110_1781861029471_pano.jpg': 'dji_fly_20260619_141816_0110_1781861029471_pano_8192.jpg',
+  };
+  const fileName = value.split('/').pop();
+  if (localImageFiles[fileName]) return localImageFiles[fileName];
+
   const driveMatch = value.match(/drive\.google\.com\/file\/d\/([^/]+)/)
     || value.match(/[?&]id=([^&]+)/);
   if (driveMatch) {
