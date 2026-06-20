@@ -872,6 +872,8 @@ let allScenes = [];
 let currentSceneId = null;
 let lotPolygonsByScene = {};
 let polygonAnimationId = null;
+let activePolygonTooltipKey = null;
+let lastPolygonPointer = { x: 0, y: 0, inside: false };
 
 // Получаем данные из Google Sheets через JSONP, чтобы локальный HTML не упирался в CORS.
 async function fetchSheetData() {
@@ -978,20 +980,13 @@ function normalizeImageUrl(url) {
   const value = (url || '').trim();
   if (!value) return value;
 
-  const localImageFiles = {
-    'dji_fly_20260619_141816_0110_1781861029471_pano.jpg': 'dji_fly_20260619_141816_0110_1781861029471_pano_8192.jpg',
-  };
-  const fileName = value.split('/').pop();
-  if (localImageFiles[fileName]) return localImageFiles[fileName];
+  if (!/^https?:\/\//i.test(value) && !value.startsWith('data:')) {
+    throw new Error(`В колонке image_url для панорамы указано "${value}". Вставьте полную публичную ссылку на фото из Google Drive или другого хранилища.`);
+  }
 
   const driveMatch = value.match(/drive\.google\.com\/file\/d\/([^/]+)/)
     || value.match(/[?&]id=([^&]+)/);
   if (driveMatch) {
-    const localDriveFiles = {
-      '1iW7jQ-sHF-TgBcoSw8CiLvcSDoNbIOur': 'dji_fly_20260619_141816_0110_1781861029471_pano_8192.jpg',
-    };
-    if (localDriveFiles[driveMatch[1]]) return localDriveFiles[driveMatch[1]];
-
     return `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveMatch[1])}&export=view`;
   }
 
@@ -1107,23 +1102,78 @@ function projectPoint(point, width, height) {
   };
 }
 
-function polygonTooltipText(lot) {
-  const status = statusInfo(lot.status).label;
-  return [
-    lot.title,
-    lot.area ? `Площадь: ${lot.area}` : '',
-    lot.price ? `Цена: ${lot.price}` : '',
-    status,
-  ].filter(Boolean).join('\n');
+function isPointInPolygon(point, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersects = ((yi > point.y) !== (yj > point.y))
+      && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function polygonTooltipKey(lot) {
+  return `${lot.title || ''}|${lot.area || ''}|${lot.price || ''}|${lot.points.map(point => `${point.yaw},${point.pitch}`).join(';')}`;
+}
+
+function setPolygonTooltipContent(tooltip, lot) {
+  const status = statusInfo(lot.status);
+  tooltip.innerHTML = `
+    <div class="polygon-tooltip-title">${escapeHTML(lot.title)}</div>
+    ${lot.area ? `<div class="polygon-tooltip-row"><span>Площадь:</span><strong>${escapeHTML(lot.area)}</strong></div>` : ''}
+    ${lot.price ? `<div class="polygon-tooltip-row"><span>Цена:</span><strong>${escapeHTML(lot.price)}</strong></div>` : ''}
+    ${lot.text ? `<div class="polygon-tooltip-row"><span>${escapeHTML(lot.text)}</span></div>` : ''}
+    <span class="polygon-tooltip-status ${status.key}">${status.label}</span>
+  `;
+}
+
+function positionPolygonTooltip(tooltip, points, width, height) {
+  if (!points.length) return;
+
+  const anchorX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const anchorY = Math.min(...points.map(point => point.y)) - 12;
+  const tooltipWidth = tooltip.offsetWidth || 220;
+  const tooltipHeight = tooltip.offsetHeight || 90;
+  const clampedX = Math.max(tooltipWidth / 2 + 8, Math.min(width - tooltipWidth / 2 - 8, anchorX));
+  const clampedY = Math.max(tooltipHeight + 8, Math.min(height - 8, anchorY));
+
+  tooltip.style.left = `${clampedX}px`;
+  tooltip.style.top = `${clampedY}px`;
+}
+
+function showPolygonTooltip(lot, points, width, height) {
+  const tooltip = document.getElementById('polygonTooltip');
+  if (!tooltip) return;
+
+  activePolygonTooltipKey = polygonTooltipKey(lot);
+  setPolygonTooltipContent(tooltip, lot);
+  tooltip.style.display = 'block';
+  positionPolygonTooltip(tooltip, points, width, height);
+  requestAnimationFrame(() => { tooltip.style.opacity = '1'; });
+}
+
+function hidePolygonTooltip() {
+  const tooltip = document.getElementById('polygonTooltip');
+  activePolygonTooltipKey = null;
+  if (!tooltip) return;
+  tooltip.style.opacity = '0';
+  tooltip.style.display = 'none';
 }
 
 function renderLotPolygons() {
   if (!viewer || !currentSceneId) return;
   const layer = document.getElementById('lotPolygonLayer');
   const wrap = document.getElementById('panorama');
+  const tooltip = document.getElementById('polygonTooltip');
   const lots = lotPolygonsByScene[currentSceneId] || [];
   const width = wrap.clientWidth;
   const height = wrap.clientHeight;
+  let hoveredLot = null;
+  let hoveredLotPoints = null;
   layer.setAttribute('viewBox', `0 0 ${width} ${height}`);
   layer.innerHTML = '';
 
@@ -1141,9 +1191,10 @@ function renderLotPolygons() {
     polygon.setAttribute('role', 'button');
     polygon.setAttribute('aria-label', `${lot.title}. ${status.label}`);
 
-    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = polygonTooltipText(lot);
-    polygon.appendChild(title);
+    if (lastPolygonPointer.inside && isPointInPolygon(lastPolygonPointer, validPoints)) {
+      hoveredLot = lot;
+      hoveredLotPoints = validPoints;
+    }
 
     if (lot.link) {
       polygon.addEventListener('click', () => window.open(lot.link, '_blank', 'noopener'));
@@ -1152,44 +1203,27 @@ function renderLotPolygons() {
       });
     }
 
-    // Обработчики наведения для показа кастомного окна с данными
-    polygon.addEventListener('mouseenter', (e) => {
-      const tooltip = document.getElementById('polygonTooltip');
-      if (!tooltip) return;
-      
-      const status = statusInfo(lot.status);
-      tooltip.innerHTML = `
-        <div class="polygon-tooltip-title">${escapeHTML(lot.title)}</div>
-        ${lot.area ? `<div class="polygon-tooltip-row"><span>Площадь:</span><strong>${escapeHTML(lot.area)}</strong></div>` : ''}
-        ${lot.price ? `<div class="polygon-tooltip-row"><span>Цена:</span><strong>${escapeHTML(lot.price)}</strong></div>` : ''}
-        ${lot.text ? `<div class="polygon-tooltip-row"><span>${escapeHTML(lot.text)}</span></div>` : ''}
-        <span class="polygon-tooltip-status ${status.key}">${status.label}</span>
-      `;
+    polygon.addEventListener('focus', () => {
+      showPolygonTooltip(lot, validPoints, width, height);
+    });
+
+    polygon.addEventListener('blur', hidePolygonTooltip);
+
+    if (tooltip && activePolygonTooltipKey === polygonTooltipKey(lot)) {
+      setPolygonTooltipContent(tooltip, lot);
       tooltip.style.display = 'block';
-      setTimeout(() => { tooltip.style.opacity = '1'; }, 10);
-    });
-
-    polygon.addEventListener('mousemove', (e) => {
-      const tooltip = document.getElementById('polygonTooltip');
-      if (!tooltip) return;
-      
-      const rect = wrap.getBoundingClientRect();
-      const x = e.clientX - rect.left + 15;
-      const y = e.clientY - rect.top + 15;
-      
-      tooltip.style.left = x + 'px';
-      tooltip.style.top = y + 'px';
-    });
-
-    polygon.addEventListener('mouseleave', () => {
-      const tooltip = document.getElementById('polygonTooltip');
-      if (!tooltip) return;
-      tooltip.style.opacity = '0';
-      tooltip.style.display = 'none';
-    });
+      positionPolygonTooltip(tooltip, validPoints, width, height);
+      tooltip.style.opacity = '1';
+    }
 
     layer.appendChild(polygon);
   });
+
+  if (hoveredLot && hoveredLotPoints) {
+    showPolygonTooltip(hoveredLot, hoveredLotPoints, width, height);
+  } else if (lastPolygonPointer.inside && activePolygonTooltipKey) {
+    hidePolygonTooltip();
+  }
 
   // 2. Отображение созданных полигонов в текущей сессии (фиолетовый цвет, кликабельные для редактирования)
   const currentSavedPolys = getSavedPolygons();
@@ -1381,6 +1415,7 @@ function renderSidebar(rows) {
 // Загрузка сцены
 function loadScene(sceneId) {
   if (!viewer || currentSceneId === sceneId) return;
+  hidePolygonTooltip();
   viewer.loadScene(sceneId);
   currentSceneId = sceneId;
   updateSidebarActive(sceneId);
@@ -1422,6 +1457,7 @@ function initViewer(config) {
   updateSavedPolygonsList();
 
   viewer.on('scenechange', id => {
+    hidePolygonTooltip();
     currentSceneId = id;
     updateSidebarActive(id);
     updateOverlay(id);
@@ -1697,6 +1733,20 @@ function updateSavedPolygonsList() {
 // Слушатели кликов для добавления точек полигона
 const viewerWrap = document.querySelector('.viewer-wrap');
 if (viewerWrap) {
+  viewerWrap.addEventListener('mousemove', (e) => {
+    const rect = viewerWrap.getBoundingClientRect();
+    lastPolygonPointer = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      inside: true,
+    };
+  });
+
+  viewerWrap.addEventListener('mouseleave', () => {
+    lastPolygonPointer.inside = false;
+    hidePolygonTooltip();
+  });
+
   viewerWrap.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     if (e.target.closest('#editorPanel') || e.target.closest('.coords-badge') || e.target.closest('.counter-badge') || e.target.closest('.info-overlay') || e.target.closest('.topbar') || e.target.closest('.sidebar')) return;
@@ -1777,10 +1827,11 @@ function showError(msg) {
   } catch (err) {
     console.error(err);
     showError(`
-      Ошибка загрузки таблицы.<br><br>
+      Ошибка загрузки тура.<br><br>
       <strong>Причины:</strong><br>
       • Таблица не открыта для публичного доступа<br>
       • Неверный SHEET_ID или имя листа<br>
+      • В image_url указано имя файла вместо полной ссылки на панораму<br>
       • Нет подключения к интернету<br><br>
       <small style="opacity:.6">${err.message}</small>
     `);
