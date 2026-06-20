@@ -987,7 +987,7 @@ function normalizeImageUrl(url) {
   const driveMatch = value.match(/drive\.google\.com\/file\/d\/([^/]+)/)
     || value.match(/[?&]id=([^&#]+)/);
   if (driveMatch) {
-    return `https://drive.usercontent.google.com/download?id=${encodeURIComponent(driveMatch[1])}&export=view`;
+    return `https://lh3.googleusercontent.com/d/${encodeURIComponent(driveMatch[1])}=s0`;
   }
 
   return value;
