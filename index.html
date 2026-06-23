@@ -35,7 +35,18 @@
     background: var(--bg-dark);
     color: var(--text-primary);
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a,
+  input,
+  .scene-card,
+  .status-filter,
+  .lot-polygon {
+    touch-action: manipulation;
   }
 
   /* ── TOP BAR ── */
@@ -142,6 +153,7 @@
     letter-spacing: 0.02em;
     cursor: pointer;
     transition: all 0.15s ease;
+    touch-action: manipulation;
   }
   .btn-request:hover {
     background: var(--accent-hover);
@@ -157,6 +169,7 @@
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.15s;
+    touch-action: manipulation;
   }
   .btn-icon:hover { background: var(--accent-hover); color: white; border-color: var(--accent-hover); transform: translateY(-1px); }
   .btn-sidebar-toggle { display: flex; }
@@ -405,6 +418,7 @@
     height: 100%;
     z-index: 20;
     pointer-events: none;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, calc(50% + 230px) 100%, calc(50% + 230px) calc(100% - 112px), calc(50% - 230px) calc(100% - 112px), calc(50% - 230px) 100%, 0 100%);
   }
   .lot-polygon {
     pointer-events: auto;
@@ -543,7 +557,8 @@
     bottom: 28px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255,255,255,0.92);
+    z-index: 80;
+    background: rgba(255,255,255,0.97);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(33,58,33,0.16);
     border-radius: 28px;
@@ -553,6 +568,7 @@
     text-align: center;
     pointer-events: none;
     transition: opacity 0.3s;
+    box-shadow: 0 18px 44px rgba(16,35,22,0.18);
   }
   .info-title { font-size: 14px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.04em; }
   .info-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
@@ -788,10 +804,13 @@
   .loading-screen::before {
     content: '';
     position: absolute;
-    inset: 8%;
+    left: 50%;
+    top: 50%;
+    width: min(1180px, calc(100vw - 48px));
+    height: min(720px, calc(100vh - 48px));
     border: 1px solid rgba(81,135,70,0.12);
     border-radius: 42px;
-    transform: rotate(-2deg);
+    transform: translate(-50%, -50%);
     pointer-events: none;
   }
   .loading-screen::after {
@@ -812,7 +831,6 @@
     gap: 22px;
     position: relative;
     z-index: 1;
-    animation: loadingFloat 4.8s ease-in-out infinite;
   }
   .loading-brand img {
     width: 100%;
@@ -922,15 +940,15 @@
   /* ── MOBILE ── */
   @media (max-width: 768px) {
     :root { --sidebar-w: 260px; }
-    .topbar { top: 12px; left: 12px; right: 12px; height: 58px; padding: 0 12px; gap: 10px; }
+    .topbar { top: 12px; left: 12px; right: 12px; height: 58px; padding: 0 12px; gap: 10px; z-index: 180; }
     .brand-logo-img { width: 92px; height: 46px; }
     .brand-kicker { display: none; }
     .sidebar {
       top: 82px;
       left: 12px;
-      bottom: 12px;
-      max-height: calc(100vh - 94px);
-      z-index: 50;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      max-height: calc(100dvh - 94px - env(safe-area-inset-bottom, 0px));
+      z-index: 170;
     }
     .sidebar.open { transform: translateX(0); box-shadow: 8px 0 24px rgba(0,0,0,0.5); }
     .btn-sidebar-toggle { display: flex; }
@@ -941,17 +959,21 @@
     .coords-badge { top: 118px; right: 12px; max-width: calc(100vw - 24px); }
     .map-button { display: none; }
     .info-overlay { bottom: 86px; left: 16px; right: 16px; transform: none; }
-    .lot-card-panel { left: 12px; right: 12px; top: auto; bottom: 86px; width: auto; }
+    #lotPolygonLayer {
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 100% calc(100% - 176px), 0 calc(100% - 176px), 0 100%);
+    }
+    .lot-card-panel { left: 12px; right: 12px; top: auto; bottom: 86px; width: auto; z-index: 165; }
     .mobile-actions {
-      position: absolute;
+      position: fixed;
       left: 12px;
       right: 12px;
-      bottom: 12px;
-      z-index: 130;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      z-index: 190;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       padding: 8px;
+      padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px) * 0.25);
       border: 1px solid rgba(33,58,33,0.14);
       border-radius: 26px;
       background: rgba(255,255,255,0.92);
@@ -967,6 +989,9 @@
       font-size: 12px;
       font-weight: 800;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .mobile-action.primary {
       background: var(--brand-green);
@@ -2120,7 +2145,7 @@ function renderSidebar(rows) {
         <div class="scene-num">${i + 1}</div>
       `;
 
-      card.addEventListener('click', () => loadScene(row[COL.id]));
+      onActivate(card, () => loadScene(row[COL.id]));
       card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') loadScene(row[COL.id]); });
       list.appendChild(card);
     });
@@ -2143,7 +2168,7 @@ function renderLotStats(rows) {
 }
 
 document.querySelectorAll('[data-status-filter]').forEach(button => {
-  button.addEventListener('click', () => {
+  onActivate(button, () => {
     const status = button.dataset.statusFilter;
     if (!status) return;
     if (activeLotStatuses.has(status)) {
@@ -2246,41 +2271,56 @@ document.getElementById('searchInput').addEventListener('input', function() {
   });
 });
 
+function onActivate(element, handler) {
+  if (!element) return;
+  let lastPointerTime = 0;
+  element.addEventListener('pointerup', event => {
+    if (event.pointerType === 'mouse') return;
+    lastPointerTime = Date.now();
+    event.preventDefault();
+    handler(event);
+  });
+  element.addEventListener('click', event => {
+    if (Date.now() - lastPointerTime < 450) return;
+    handler(event);
+  });
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function openCurrentMap() {
+  const row = allScenes.find(scene => scene[COL.id] === currentSceneId);
+  const url = document.getElementById('mapButton').dataset.mapUrl || mapUrlFromRow(row);
+  window.open(url, '_blank', 'noopener');
+}
+
+function openRequestForm() {
+  window.open(requestUrlForLot(activeLot), '_blank', 'noopener');
+}
+
 // Полноэкранный режим
-document.getElementById('btnFullscreen').addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-  } else {
-    document.exitFullscreen();
+onActivate(document.getElementById('btnFullscreen'), () => {
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
   }
 });
 
 // Мобильный toggle сайдбара
-document.getElementById('sidebarToggle').addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+onActivate(document.getElementById('sidebarToggle'), toggleSidebar);
 
-document.getElementById('mapButton').addEventListener('click', () => {
-  const row = allScenes.find(scene => scene[COL.id] === currentSceneId);
-  const url = document.getElementById('mapButton').dataset.mapUrl || mapUrlFromRow(row);
-  window.open(url, '_blank', 'noopener');
-});
+onActivate(document.getElementById('mapButton'), openCurrentMap);
 
-document.getElementById('mobileMenuButton')?.addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+onActivate(document.getElementById('mobileMenuButton'), toggleSidebar);
 
-document.getElementById('mobileMapButton')?.addEventListener('click', () => {
-  document.getElementById('mapButton')?.click();
-});
+onActivate(document.getElementById('mobileMapButton'), openCurrentMap);
 
-document.getElementById('mobileRequestButton')?.addEventListener('click', () => {
-  window.open(requestUrlForLot(activeLot), '_blank', 'noopener');
-});
+onActivate(document.getElementById('mobileRequestButton'), openRequestForm);
 
-document.getElementById('topRequestButton')?.addEventListener('click', () => {
-  window.open(requestUrlForLot(activeLot), '_blank', 'noopener');
-});
+onActivate(document.getElementById('topRequestButton'), openRequestForm);
 
 // Координаты под курсором мыши
 let lastMouseCoords = { yaw: 0, pitch: 0 };
