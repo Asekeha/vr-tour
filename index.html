@@ -1486,6 +1486,7 @@ let polygonAnimationId = null;
 let activePolygonTooltipKey = null;
 let lastPolygonPointer = { x: 0, y: 0, inside: false };
 let isPolygonTooltipHovered = false;
+let isLotPolygonHovered = false;
 let polygonTooltipHideTimer = null;
 let activeLot = null;
 const activeLotStatuses = new Set(['available', 'reserved', 'sold']);
@@ -1883,7 +1884,7 @@ function showPolygonTooltip(lot, points, width, height) {
 }
 
 function hidePolygonTooltip(force = false) {
-  if (isPolygonTooltipHovered && !force) return;
+  if ((isPolygonTooltipHovered || isLotPolygonHovered) && !force) return;
   const tooltip = document.getElementById('polygonTooltip');
   activePolygonTooltipKey = null;
   if (!tooltip) return;
@@ -1901,6 +1902,13 @@ function scheduleHidePolygonTooltip() {
     polygonTooltipHideTimer = null;
     hidePolygonTooltip();
   }, 90);
+}
+
+function keepPolygonTooltipOpen() {
+  if (polygonTooltipHideTimer) {
+    clearTimeout(polygonTooltipHideTimer);
+    polygonTooltipHideTimer = null;
+  }
 }
 
 function renderLotPolygons() {
@@ -1929,6 +1937,14 @@ function renderLotPolygons() {
     polygon.setAttribute('tabindex', '0');
     polygon.setAttribute('role', 'button');
     polygon.setAttribute('aria-label', `${lot.title}. ${status.label}`);
+    polygon.addEventListener('mouseenter', () => {
+      isLotPolygonHovered = true;
+      keepPolygonTooltipOpen();
+    });
+    polygon.addEventListener('mouseleave', () => {
+      isLotPolygonHovered = false;
+      scheduleHidePolygonTooltip();
+    });
 
     if (lastPolygonPointer.inside && isPointInPolygon(lastPolygonPointer, validPoints)) {
       polygon.classList.add('is-hovered');
@@ -1964,6 +1980,8 @@ function renderLotPolygons() {
     number.textContent = String(index + 1);
     layer.appendChild(number);
   });
+
+  isLotPolygonHovered = Boolean(hoveredLot);
 
   if (hoveredLot && hoveredLotPoints) {
     showPolygonTooltip(hoveredLot, hoveredLotPoints, width, height);
@@ -2605,15 +2623,12 @@ if (viewerWrap) {
   if (polygonTooltipElement) {
     polygonTooltipElement.addEventListener('mouseenter', () => {
       isPolygonTooltipHovered = true;
-      if (polygonTooltipHideTimer) {
-        clearTimeout(polygonTooltipHideTimer);
-        polygonTooltipHideTimer = null;
-      }
+      keepPolygonTooltipOpen();
     });
 
     polygonTooltipElement.addEventListener('mouseleave', () => {
       isPolygonTooltipHovered = false;
-      hidePolygonTooltip(true);
+      scheduleHidePolygonTooltip();
     });
   }
 
@@ -2636,6 +2651,7 @@ if (viewerWrap) {
   viewerWrap.addEventListener('mouseleave', () => {
     lastPolygonPointer.inside = false;
     isPolygonTooltipHovered = false;
+    isLotPolygonHovered = false;
     hidePolygonTooltip(true);
   });
 
