@@ -424,7 +424,7 @@
     pointer-events: auto;
     cursor: pointer;
     stroke: var(--brand-green);
-    stroke-width: 3;
+    stroke-width: 4;
     vector-effect: non-scaling-stroke;
     fill: rgba(81,135,70,0.08);
     filter: drop-shadow(0 4px 12px rgba(33,58,33,0.22));
@@ -996,6 +996,9 @@
     .mobile-action.primary {
       background: var(--brand-green);
       color: white;
+    }
+    .lot-polygon {
+      stroke-width: 7;
     }
     .loading-brand img { height: 190px; }
   }
@@ -1705,8 +1708,8 @@ function openLotCard(lot) {
     </div>
   `;
   panel.classList.add('open');
-  document.getElementById('lotCardClose')?.addEventListener('click', closeLotCard);
-  document.getElementById('lotCardFocus')?.addEventListener('click', () => {
+  onActivate(document.getElementById('lotCardClose'), closeLotCard);
+  onActivate(document.getElementById('lotCardFocus'), () => {
     if (lot.points?.length && viewer) {
       const avgYaw = lot.points.reduce((sum, point) => sum + point.yaw, 0) / lot.points.length;
       const avgPitch = lot.points.reduce((sum, point) => sum + point.pitch, 0) / lot.points.length;
@@ -1922,7 +1925,7 @@ function renderLotPolygons() {
       hoveredLotPoints = validPoints;
     }
 
-    polygon.addEventListener('click', () => openLotCard(lot));
+    onActivate(polygon, () => openLotCard(lot));
     polygon.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') openLotCard(lot);
     });
@@ -1975,7 +1978,7 @@ function renderLotPolygons() {
     polygon.appendChild(title);
     
     // Клик на полигон открывает его в режиме редактирования
-    polygon.addEventListener('click', (e) => {
+    onActivate(polygon, (e) => {
       e.stopPropagation();
       editSavedPolygon(index);
     });
@@ -2273,15 +2276,27 @@ document.getElementById('searchInput').addEventListener('input', function() {
 
 function onActivate(element, handler) {
   if (!element) return;
-  let lastPointerTime = 0;
+  let lastTouchTime = 0;
+
+  function run(event) {
+    lastTouchTime = Date.now();
+    event.preventDefault();
+    event.stopPropagation();
+    handler(event);
+  }
+
   element.addEventListener('pointerup', event => {
     if (event.pointerType === 'mouse') return;
-    lastPointerTime = Date.now();
-    event.preventDefault();
-    handler(event);
-  });
+    run(event);
+  }, { passive: false });
+
+  element.addEventListener('touchend', event => {
+    if (Date.now() - lastTouchTime < 450) return;
+    run(event);
+  }, { passive: false });
+
   element.addEventListener('click', event => {
-    if (Date.now() - lastPointerTime < 450) return;
+    if (Date.now() - lastTouchTime < 450) return;
     handler(event);
   });
 }
