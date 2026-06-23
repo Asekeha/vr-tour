@@ -928,32 +928,24 @@
     .lot-card-panel { left: 12px; right: 12px; top: auto; bottom: 86px; width: auto; z-index: 265; }
     .mobile-actions {
       position: fixed;
-      left: 12px;
-      right: 12px;
+      right: 14px;
       bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       z-index: 290;
       display: none;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      padding: 8px;
-      padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px) * 0.25);
-      border: 1px solid rgba(33,58,33,0.14);
-      border-radius: 26px;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(14px);
-      box-shadow: 0 14px 40px rgba(16,35,22,0.22);
+      align-items: center;
+      gap: 10px;
       pointer-events: auto;
       touch-action: manipulation;
     }
     body.tour-ready .mobile-actions {
-      display: grid;
+      display: flex;
     }
     .mobile-action {
       border: 0;
       border-radius: 999px;
       background: rgba(81,135,70,0.10);
       color: var(--brand-green-deep);
-      min-height: 42px;
+      min-height: 48px;
       font-size: 12px;
       font-weight: 800;
       cursor: pointer;
@@ -961,10 +953,30 @@
       touch-action: manipulation;
       -webkit-user-select: none;
       user-select: none;
+      box-shadow: 0 12px 32px rgba(16,35,22,0.18);
+    }
+    .mobile-action.map-only {
+      width: 52px;
+      min-width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(33,58,33,0.14);
+      backdrop-filter: blur(14px);
+    }
+    .mobile-action.map-only svg {
+      width: 22px;
+      height: 22px;
+      pointer-events: none;
     }
     .mobile-action.primary {
       background: var(--brand-green);
       color: white;
+      min-width: 138px;
+      padding: 0 18px;
+      box-shadow: 0 16px 36px rgba(81,135,70,0.34);
     }
     .lot-polygon {
       stroke-width: 3.2;
@@ -1391,8 +1403,13 @@
 
     <!-- Mobile actions -->
     <div class="mobile-actions" aria-label="Основные действия">
-      <button class="mobile-action" id="mobileMenuButton" type="button">Меню</button>
-      <button class="mobile-action" id="mobileMapButton" type="button">Карта</button>
+      <button class="mobile-action map-only" id="mobileMapButton" type="button" title="Карта" aria-label="Открыть карту">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"/>
+          <path d="M9 3v15"/>
+          <path d="M15 6v15"/>
+        </svg>
+      </button>
       <button class="mobile-action primary" id="mobileRequestButton" type="button">Заявка</button>
     </div>
 
