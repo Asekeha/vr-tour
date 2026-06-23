@@ -1883,8 +1883,7 @@ function showPolygonTooltip(lot, points, width, height) {
   requestAnimationFrame(() => { tooltip.style.opacity = '1'; });
 }
 
-function hidePolygonTooltip(force = false) {
-  if ((isPolygonTooltipHovered || isLotPolygonHovered) && !force) return;
+function hidePolygonTooltip() {
   const tooltip = document.getElementById('polygonTooltip');
   activePolygonTooltipKey = null;
   if (!tooltip) return;
@@ -1900,7 +1899,9 @@ function scheduleHidePolygonTooltip() {
   if (polygonTooltipHideTimer) clearTimeout(polygonTooltipHideTimer);
   polygonTooltipHideTimer = setTimeout(() => {
     polygonTooltipHideTimer = null;
-    hidePolygonTooltip();
+    if (!isPolygonTooltipHovered && !isLotPolygonHovered) {
+      hidePolygonTooltip();
+    }
   }, 90);
 }
 
@@ -2636,10 +2637,15 @@ if (viewerWrap) {
     if (e.target.closest('#polygonTooltip')) {
       isPolygonTooltipHovered = true;
       lastPolygonPointer.inside = false;
+      keepPolygonTooltipOpen();
       return;
     }
 
     isPolygonTooltipHovered = false;
+    if (e.target.closest('.lot-polygon')) {
+      isLotPolygonHovered = true;
+      keepPolygonTooltipOpen();
+    }
     const rect = viewerWrap.getBoundingClientRect();
     lastPolygonPointer = {
       x: e.clientX - rect.left,
@@ -2652,7 +2658,7 @@ if (viewerWrap) {
     lastPolygonPointer.inside = false;
     isPolygonTooltipHovered = false;
     isLotPolygonHovered = false;
-    hidePolygonTooltip(true);
+    hidePolygonTooltip();
   });
 
   viewerWrap.addEventListener('mousedown', (e) => {
