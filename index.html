@@ -429,9 +429,10 @@
     cursor: pointer;
     stroke: var(--brand-green);
     stroke-width: 4;
+    stroke-opacity: 0.9;
     vector-effect: non-scaling-stroke;
     fill: rgba(81,135,70,0.08);
-    filter: drop-shadow(0 4px 12px rgba(33,58,33,0.22));
+    filter: drop-shadow(0 3px 8px rgba(33,58,33,0.18));
     transition: fill 0.15s, stroke-width 0.15s, stroke-opacity 0.15s;
   }
   .lot-polygon.is-hovered,
@@ -965,7 +966,9 @@
       color: white;
     }
     .lot-polygon {
-      stroke-width: 7;
+      stroke-width: 4.5;
+      stroke-opacity: 0.82;
+      filter: drop-shadow(0 2px 6px rgba(33,58,33,0.16));
     }
     .loading-brand img { height: 190px; }
     .loading-screen {
