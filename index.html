@@ -968,6 +968,16 @@
       stroke-width: 7;
     }
     .loading-brand img { height: 190px; }
+    .loading-screen {
+      z-index: 160;
+      pointer-events: none;
+    }
+    .loading-screen::before {
+      width: min(330px, 80vw);
+      box-shadow:
+        0 0 0 16px rgba(81,135,70,0.035),
+        inset 0 0 42px rgba(255,255,255,0.52);
+    }
   }
 
   /* ── EMPTY STATE ── */
