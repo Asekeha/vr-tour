@@ -1589,6 +1589,12 @@ const COL = {
   lotLink:     'lot_link',      // ссылка на объявление или контакты
   lotPoints:   'lot_points',    // границы участка: yaw,pitch; yaw,pitch; yaw,pitch
   mapUrl:      'map_url',       // ссылка на Google Maps для сцены или объекта
+  sceneLat:    'scene_lat',     // широта точки съёмки панорамы для авто-KML участков
+  sceneLng:    'scene_lng',     // долгота точки съёмки панорамы для авто-KML участков
+  sceneAltitude:'scene_altitude_m', // высота камеры/дрона над землёй в метрах
+  headingOffset:'heading_offset', // yaw, где в панораме находится север: yaw = bearing + heading_offset
+  pitchOffset: 'pitch_offset',   // тонкая поправка pitch для авто-KML участков
+  lotRadiusM:  'lot_radius_m',   // максимальная дистанция участков от точки съёмки
 };
 
 // ════════════════════════════════════════════════════
@@ -1602,7 +1608,14 @@ let tourConfig = null;
 const preloadedPanoramaUrls = new Set();
 const preloadingPanoramaUrls = new Set();
 const PANORAMA_PRELOAD_RADIUS = 1;
+const DEFAULT_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=51.075930%2C71.234084';
+const CLIENT_LOTS_SHEET_ID = '1mdAVnkyEWr9FRAd0f_JRygSIuxwFdzOWXnuqEkJERwg';
+const CLIENT_LOTS_GID = '2123234659';
+const LOT_GEOMETRY_URL = 'data/lots.geojson';
+const AUTO_LOT_DEFAULT_RADIUS_M = 1400;
 let lotPolygonsByScene = {};
+let lotBusinessById = new Map();
+let lotGeometryFeatures = [];
 let polygonAnimationId = null;
 let activePolygonTooltipKey = null;
 let lastPolygonPointer = { x: 0, y: 0, inside: false };
@@ -1697,6 +1710,99 @@ function parseSheetResponse(data) {
   }).filter(isUsableRow);
 }
 
+async function loadAutoLotSources() {
+  const [clientLots, geometry] = await Promise.all([
+    fetchClientLotsData().catch(err => {
+      console.warn('Клиентская таблица участков не загружена:', err);
+      return [];
+    }),
+    fetchLotGeometry().catch(err => {
+      console.warn('GeoJSON участков не загружен:', err);
+      return [];
+    }),
+  ]);
+
+  lotBusinessById = new Map(clientLots.map(lot => [lot.id, lot]));
+  lotGeometryFeatures = geometry;
+  console.info(`Auto lots ready: ${lotBusinessById.size} business rows, ${lotGeometryFeatures.length} geometry features`);
+}
+
+function fetchClientLotsData() {
+  const callbackName = `clientLotsCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const tqx = encodeURIComponent(`out:json;responseHandler:${callbackName}`);
+  const url = `https://docs.google.com/spreadsheets/d/${CLIENT_LOTS_SHEET_ID}/gviz/tq?gid=${encodeURIComponent(CLIENT_LOTS_GID)}&headers=1&tqx=${tqx}`;
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Клиентская таблица участков не ответила вовремя'));
+    }, SHEET_TIMEOUT_MS);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    }
+
+    window[callbackName] = data => {
+      cleanup();
+      try {
+        if (!data || data.status !== 'ok') throw new Error('Google Sheets вернул ошибку для клиентских участков');
+        resolve(parseClientLotsResponse(data));
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('Не удалось подключиться к клиентской таблице участков'));
+    };
+
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
+async function fetchLotGeometry() {
+  const response = await fetch(LOT_GEOMETRY_URL, { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`GeoJSON участков недоступен: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data?.features) ? data.features : [];
+}
+
+function cellText(cell) {
+  if (!cell) return '';
+  return String(cell.f ?? cell.v ?? '').trim();
+}
+
+function cellValue(cell) {
+  if (!cell) return '';
+  return String(cell.v ?? '').trim();
+}
+
+function parseClientLotsResponse(data) {
+  const rows = data?.table?.rows || [];
+
+  return rows.map(row => {
+    const cells = row.c || [];
+    const id = cellValue(cells[1]);
+    if (!id) return null;
+    const status = cellText(cells[6]);
+    return {
+      id,
+      number: cellText(cells[0]),
+      rka: cellValue(cells[2]),
+      address: cellText(cells[3]),
+      area: cellText(cells[4]),
+      price: cellText(cells[5]),
+      status,
+      hasStatus: Boolean(status),
+    };
+  }).filter(Boolean);
+}
+
 function normalizeHeader(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
 }
@@ -1780,6 +1886,143 @@ function statusClass(status) {
 
 function visibleLot(lot) {
   return activeLotStatuses.has(statusClass(lot.status));
+}
+
+function toRad(deg) {
+  return deg * Math.PI / 180;
+}
+
+function toDeg(rad) {
+  return rad * 180 / Math.PI;
+}
+
+function normalizeYaw(deg) {
+  return ((deg + 540) % 360) - 180;
+}
+
+function parseNumberValue(value) {
+  if (typeof value === 'number') return value;
+  const normalized = String(value || '').trim().replace(',', '.');
+  return parseFloat(normalized);
+}
+
+function distanceMeters(aLat, aLng, bLat, bLng) {
+  const earthRadius = 6371008.8;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const h = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function bearingDegrees(aLat, aLng, bLat, bLng) {
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const dLng = toRad(bLng - aLng);
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2)
+    - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function polygonCentroidLngLat(ring) {
+  const usable = ring[0]?.[0] === ring[ring.length - 1]?.[0] && ring[0]?.[1] === ring[ring.length - 1]?.[1]
+    ? ring.slice(0, -1)
+    : ring;
+  const total = usable.reduce((acc, coord) => {
+    acc.lng += coord[0];
+    acc.lat += coord[1];
+    return acc;
+  }, { lng: 0, lat: 0 });
+  return {
+    lng: total.lng / usable.length,
+    lat: total.lat / usable.length,
+  };
+}
+
+function geoCoordToPanoramaPoint(coord, sceneMeta) {
+  const [lng, lat] = coord;
+  const distance = Math.max(1, distanceMeters(sceneMeta.lat, sceneMeta.lng, lat, lng));
+  const bearing = bearingDegrees(sceneMeta.lat, sceneMeta.lng, lat, lng);
+  return {
+    yaw: normalizeYaw(bearing + sceneMeta.headingOffset),
+    pitch: toDeg(Math.atan2(-sceneMeta.altitude, distance)) + sceneMeta.pitchOffset,
+  };
+}
+
+function sceneAutoLotMeta(row) {
+  const lat = parseNumberValue(row[COL.sceneLat]);
+  const lng = parseNumberValue(row[COL.sceneLng]);
+  const altitude = parseNumberValue(row[COL.sceneAltitude]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(altitude) || altitude <= 0) return null;
+
+  const headingOffset = parseNumberValue(row[COL.headingOffset]);
+  const pitchOffset = parseNumberValue(row[COL.pitchOffset]);
+  const radius = parseNumberValue(row[COL.lotRadiusM]);
+  return {
+    lat,
+    lng,
+    altitude,
+    headingOffset: Number.isFinite(headingOffset) ? headingOffset : 0,
+    pitchOffset: Number.isFinite(pitchOffset) ? pitchOffset : 0,
+    radius: Number.isFinite(radius) && radius > 0 ? radius : AUTO_LOT_DEFAULT_RADIUS_M,
+  };
+}
+
+function lotFromGeometryFeature(feature, sceneMeta) {
+  const props = feature?.properties || {};
+  const lotId = String(props.lot_id || props.kad_nomer || '').trim();
+  if (!lotId) return null;
+
+  const business = lotBusinessById.get(lotId);
+  if (!business?.hasStatus) return null;
+
+  const geometry = feature.geometry || {};
+  const ring = geometry.type === 'Polygon'
+    ? geometry.coordinates?.[0]
+    : geometry.type === 'MultiPolygon'
+      ? geometry.coordinates?.[0]?.[0]
+      : null;
+  if (!Array.isArray(ring) || ring.length < 4) return null;
+
+  const centroid = polygonCentroidLngLat(ring);
+  if (distanceMeters(sceneMeta.lat, sceneMeta.lng, centroid.lat, centroid.lng) > sceneMeta.radius) return null;
+
+  const points = ring
+    .slice(0, -1)
+    .map(coord => geoCoordToPanoramaPoint(coord, sceneMeta))
+    .filter(point => Number.isFinite(point.yaw) && Number.isFinite(point.pitch));
+  if (points.length < 3) return null;
+
+  return {
+    id: lotId,
+    status: business.status,
+    area: business.area || (props.area_sotka ? `${props.area_sotka} соток` : ''),
+    price: business.price,
+    title: `Участок ${lotId}`,
+    text: business.address || props.address_ru || '',
+    link: '',
+    points,
+  };
+}
+
+function buildAutoLotPolygons(sceneRows) {
+  if (!lotBusinessById.size || !lotGeometryFeatures.length) return;
+
+  sceneRows.forEach(row => {
+    const sceneId = row[COL.id];
+    const sceneMeta = sceneAutoLotMeta(row);
+    if (!sceneMeta) return;
+
+    const autoLots = lotGeometryFeatures
+      .map(feature => lotFromGeometryFeature(feature, sceneMeta))
+      .filter(Boolean);
+    if (!autoLots.length) return;
+    if (!lotPolygonsByScene[sceneId]) lotPolygonsByScene[sceneId] = [];
+    lotPolygonsByScene[sceneId].push(...autoLots);
+  });
 }
 
 function isMobileViewport() {
@@ -2250,6 +2493,8 @@ function buildConfig(rows) {
     }
   });
 
+  buildAutoLotPolygons(sceneRows);
+
   sceneOrder.forEach(id => {
     const { row, hotspots } = sceneMap[id];
     scenes[id] = {
@@ -2329,9 +2574,15 @@ function renderSidebar(rows) {
 
 function renderLotStats(rows) {
   const stats = { available: 0, reserved: 0, sold: 0 };
-  rows.filter(row => row[COL.lotId]).forEach(row => {
-    stats[statusClass(row[COL.lotStatus])]++;
-  });
+  if (lotBusinessById.size) {
+    lotBusinessById.forEach(lot => {
+      if (lot.hasStatus) stats[statusClass(lot.status)]++;
+    });
+  } else {
+    rows.filter(row => row[COL.lotId]).forEach(row => {
+      stats[statusClass(row[COL.lotStatus])]++;
+    });
+  }
 
   const el = document.getElementById('lotStats');
   if (!el) return;
@@ -2391,12 +2642,8 @@ function updateOverlay(sceneId) {
   updateMapButton(row);
 }
 
-function mapUrlFromRow(row) {
-  const directUrl = (row?.[COL.mapUrl] || '').trim();
-  if (directUrl) return directUrl;
-
-  const query = row?.[COL.title] || row?.[COL.description] || 'EXPO Astana';
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+function mapUrlFromRow() {
+  return DEFAULT_MAP_URL;
 }
 
 function updateMapButton(row) {
@@ -3006,6 +3253,7 @@ function startIntroMessages() {
 
   try {
     const rows = await fetchSheetData();
+    await loadAutoLotSources();
 
     if (getSceneRows(rows).length === 0) {
       if (introTimer) clearInterval(introTimer);
