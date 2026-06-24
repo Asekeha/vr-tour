@@ -471,18 +471,53 @@
   .pnlm-ui { font-family: inherit; }
   .pnlm-hot-spot-debug-indicator { display: none !important; }
   .pnlm-hotspot-base.pnlm-scene {
-    background: rgba(143,191,114,0.92);
-    border: 2px solid white;
+    width: 46px !important;
+    height: 46px !important;
+    border: 1px solid rgba(255,255,255,0.94);
     border-radius: 50%;
-    width: 28px; height: 28px;
+    background:
+      radial-gradient(circle at 50% 46%, rgba(255,255,255,0.96) 0 22%, transparent 23%),
+      linear-gradient(145deg, #7fbf72, #3f7d39);
+    box-shadow:
+      0 0 0 7px rgba(81,135,70,0.18),
+      0 14px 34px rgba(16,35,22,0.34),
+      inset 0 1px 0 rgba(255,255,255,0.42);
+    cursor: pointer;
+    transform-origin: center;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .pnlm-hotspot-base.pnlm-scene::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.36);
+    background: rgba(81,135,70,0.10);
+    animation: sceneHotspotPulse 2.4s ease-out infinite;
   }
   .pnlm-hotspot-base.pnlm-scene::after {
     content: '';
-    display: block;
-    width: 12px; height: 12px;
-    background: white;
-    border-radius: 50%;
-    margin: 6px auto;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 13px;
+    height: 13px;
+    border-top: 3px solid var(--brand-green-deep);
+    border-right: 3px solid var(--brand-green-deep);
+    transform: translate(-58%, -50%) rotate(45deg);
+  }
+  .pnlm-hotspot-base.pnlm-scene:hover,
+  .pnlm-hotspot-base.pnlm-scene:focus {
+    border-color: white;
+    transform: scale(1.12);
+    box-shadow:
+      0 0 0 10px rgba(81,135,70,0.20),
+      0 18px 42px rgba(16,35,22,0.40),
+      inset 0 1px 0 rgba(255,255,255,0.54);
+  }
+  @keyframes sceneHotspotPulse {
+    0% { opacity: 0.8; transform: scale(0.76); }
+    70%, 100% { opacity: 0; transform: scale(1.28); }
   }
   .lot-hotspot {
     width: 28px !important;
@@ -1481,6 +1516,10 @@ const COL = {
 let viewer = null;
 let allScenes = [];
 let currentSceneId = null;
+let tourConfig = null;
+const preloadedPanoramaUrls = new Set();
+const preloadingPanoramaUrls = new Set();
+const PANORAMA_PRELOAD_RADIUS = 1;
 let lotPolygonsByScene = {};
 let polygonAnimationId = null;
 let activePolygonTooltipKey = null;
@@ -2267,8 +2306,67 @@ function updateMapButton(row) {
   btn.dataset.mapUrl = mapUrlFromRow(row);
 }
 
+function getScenePanoramaUrl(sceneId) {
+  const scene = tourConfig?.scenes?.[sceneId];
+  return scene?.panorama || '';
+}
+
+function preloadPanoramaUrl(url) {
+  if (!url || preloadedPanoramaUrls.has(url) || preloadingPanoramaUrls.has(url)) return;
+
+  preloadingPanoramaUrls.add(url);
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+
+  image.onload = () => {
+    preloadingPanoramaUrls.delete(url);
+    preloadedPanoramaUrls.add(url);
+  };
+  image.onerror = () => {
+    preloadingPanoramaUrls.delete(url);
+    console.warn('Не удалось предзагрузить панораму:', url);
+  };
+
+  image.src = url;
+}
+
+function nearbySceneIds(sceneId) {
+  const ids = [];
+  const currentIndex = allScenes.findIndex(row => row[COL.id] === sceneId);
+
+  for (let offset = 1; offset <= PANORAMA_PRELOAD_RADIUS; offset++) {
+    const previous = allScenes[currentIndex - offset]?.[COL.id];
+    const next = allScenes[currentIndex + offset]?.[COL.id];
+    if (next) ids.push(next);
+    if (previous) ids.push(previous);
+  }
+
+  const hotspotSceneIds = (tourConfig?.scenes?.[sceneId]?.hotSpots || [])
+    .filter(hotspot => hotspot.type === 'scene' && hotspot.sceneId)
+    .map(hotspot => hotspot.sceneId);
+
+  return [...new Set([...hotspotSceneIds, ...ids])];
+}
+
+function scheduleNearbyPanoramaPreload(sceneId) {
+  const run = () => {
+    nearbySceneIds(sceneId)
+      .map(getScenePanoramaUrl)
+      .filter(Boolean)
+      .slice(0, 3)
+      .forEach(preloadPanoramaUrl);
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    setTimeout(run, 900);
+  }
+}
+
 // Инициализация viewer
 function initViewer(config, onFirstLoad) {
+  tourConfig = config;
   viewer = pannellum.viewer('panorama', config);
   let firstLoadHandled = false;
 
@@ -2280,9 +2378,11 @@ function initViewer(config, onFirstLoad) {
   updateSavedPolygonsList();
 
   viewer.on('load', () => {
-    if (firstLoadHandled) return;
-    firstLoadHandled = true;
-    if (typeof onFirstLoad === 'function') onFirstLoad();
+    scheduleNearbyPanoramaPreload(currentSceneId);
+    if (!firstLoadHandled) {
+      firstLoadHandled = true;
+      if (typeof onFirstLoad === 'function') onFirstLoad();
+    }
   });
 
   viewer.on('scenechange', id => {
