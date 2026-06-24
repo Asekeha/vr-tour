@@ -6,7 +6,7 @@
 
 - Геометрия участков лежит в `data/lots.geojson`.
 - Пользовательская таблица берется из Google Sheets:
-  `1mdAVnkyEWr9FRAd0f_JRygSIuxwFdzOWXnuqEkJERwg`, лист `2123234659`.
+  `13fQ2yfNXnIo6I-OKWVV5z4EhEfXGrdfldxOdBTnAgio`, лист `2123234659`.
 - Связь идет по кадастровому номеру:
   - в GeoJSON: `lot_id` / `kad_nomer`
   - в пользовательской таблице: `Кадастровый номер`
