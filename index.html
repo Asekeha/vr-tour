@@ -452,20 +452,20 @@
   .lot-number {
     pointer-events: none;
     paint-order: stroke;
-    stroke: rgba(255,255,255,0.92);
-    stroke-width: 5px;
+    stroke: rgba(0,0,0,0.70);
+    stroke-width: 4px;
     stroke-linejoin: round;
-    fill: var(--brand-green-deep);
-    font-size: 18px;
+    fill: #ffffff;
+    font-size: 15px;
     font-weight: 800;
     text-anchor: middle;
     dominant-baseline: central;
     filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
   }
-  .lot-number.lot-available { fill: #4eff02; }
-  .lot-number.lot-reserved { fill: #d98f00; }
-  .lot-number.lot-sold { fill: #ff000a; }
-  .lot-number.lot-draft { fill: #4d6049; }
+  .lot-number.lot-available,
+  .lot-number.lot-reserved,
+  .lot-number.lot-sold,
+  .lot-number.lot-draft { fill: #ffffff; }
 
   /* Pannellum overrides */
   .pnlm-ui { font-family: inherit; }
