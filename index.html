@@ -12,20 +12,20 @@
   :root {
     --sidebar-w: 300px;
     --topbar-h: 72px;
-    --brand-green: #22e04f;
-    --brand-green-deep: #063915;
+    --brand-green: #518746;
+    --brand-green-deep: #213a21;
     --brand-cream: #f7f4ec;
-    --accent: #22e04f;
-    --accent-hover: #5cff7e;
-    --bg-dark: #06150b;
+    --accent: #518746;
+    --accent-hover: #6baa5f;
+    --bg-dark: #102316;
     --bg-panel: rgba(255,255,255,0.92);
     --bg-card: rgba(255,255,255,0.76);
-    --bg-card-hover: rgba(34,224,79,0.14);
-    --text-primary: #063915;
+    --bg-card-hover: rgba(81,135,70,0.10);
+    --text-primary: #213a21;
     --text-secondary: #4d6049;
     --text-muted: #7b8777;
-    --border: rgba(6,57,21,0.16);
-    --border-hover: rgba(34,224,79,0.42);
+    --border: rgba(33,58,33,0.14);
+    --border-hover: rgba(33,58,33,0.28);
     --radius: 22px;
     --radius-sm: 14px;
   }
@@ -58,7 +58,7 @@
     height: var(--topbar-h);
     background:
       linear-gradient(90deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84));
-    border: 1px solid rgba(6,57,21,0.16);
+    border: 1px solid rgba(33,58,33,0.14);
     border-radius: 30px;
     backdrop-filter: blur(12px);
     display: flex;
@@ -118,7 +118,7 @@
   .topbar-title {
     font-size: 14px;
     color: var(--text-secondary);
-    border-left: 1px solid rgba(6,57,21,0.20);
+    border-left: 1px solid rgba(33,58,33,0.18);
     padding-left: 12px;
     margin-left: 4px;
     white-space: nowrap;
@@ -201,7 +201,7 @@
     max-height: calc(100vh - 122px);
     background: rgba(255,255,255,0.92);
     backdrop-filter: blur(16px);
-    border: 1px solid rgba(6,57,21,0.16);
+    border: 1px solid rgba(33,58,33,0.14);
     border-radius: 28px;
     display: flex;
     flex-direction: column;
@@ -218,8 +218,8 @@
   }
   .sidebar-brand {
     padding: 14px 14px 12px;
-    border-bottom: 1px solid rgba(6,57,21,0.10);
-    background: linear-gradient(180deg, rgba(34,224,79,0.10), rgba(34,224,79,0));
+    border-bottom: 1px solid rgba(33,58,33,0.10);
+    background: linear-gradient(180deg, rgba(81,135,70,0.10), rgba(81,135,70,0));
   }
   .sidebar-brand a {
     display: block;
@@ -251,13 +251,13 @@
   }
   .sidebar-search {
     padding: 12px;
-    border-bottom: 1px solid rgba(6,57,21,0.10);
+    border-bottom: 1px solid rgba(33,58,33,0.10);
     flex-shrink: 0;
   }
   .sidebar-search input {
     width: 100%;
-    background: rgba(34,224,79,0.07);
-    border: 1px solid rgba(6,57,21,0.20);
+    background: rgba(81,135,70,0.07);
+    border: 1px solid rgba(33,58,33,0.18);
     border-radius: var(--radius-sm);
     padding: 8px 12px 8px 34px;
     color: var(--text-primary);
@@ -276,7 +276,7 @@
   }
   .lot-tools {
     padding: 12px;
-    border-bottom: 1px solid rgba(6,57,21,0.10);
+    border-bottom: 1px solid rgba(33,58,33,0.10);
     display: grid;
     gap: 10px;
   }
@@ -296,7 +296,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border: 1px solid rgba(6,57,21,0.16);
+    border: 1px solid rgba(33,58,33,0.14);
     border-radius: 999px;
     background: rgba(255,255,255,0.72);
     color: var(--text-secondary);
@@ -307,8 +307,8 @@
     transition: all 0.15s ease;
   }
   .status-filter.is-active {
-    background: rgba(34,224,79,0.12);
-    border-color: rgba(34,224,79,0.38);
+    background: rgba(81,135,70,0.12);
+    border-color: rgba(81,135,70,0.38);
     color: var(--brand-green-deep);
   }
   .status-dot {
@@ -366,8 +366,8 @@
     transition: all 0.15s;
     margin-bottom: 2px;
   }
-  .scene-card:hover { background: rgba(34,224,79,0.10); border-color: rgba(34,224,79,0.22); }
-  .scene-card.active { background: rgba(34,224,79,0.14); border-color: rgba(34,224,79,0.42); }
+  .scene-card:hover { background: rgba(81,135,70,0.10); border-color: rgba(81,135,70,0.22); }
+  .scene-card.active { background: rgba(81,135,70,0.14); border-color: rgba(81,135,70,0.42); }
   .scene-thumb {
     width: 52px; height: 36px;
     border-radius: 5px;
@@ -431,14 +431,14 @@
     stroke-width: 4;
     stroke-opacity: 0.9;
     vector-effect: non-scaling-stroke;
-    fill: rgba(34,224,79,0.08);
-    filter: drop-shadow(0 3px 8px rgba(6,57,21,0.20));
+    fill: rgba(81,135,70,0.08);
+    filter: drop-shadow(0 3px 8px rgba(33,58,33,0.18));
     transition: fill 0.15s, stroke-width 0.15s, stroke-opacity 0.15s;
   }
   .lot-polygon.is-hovered,
   .lot-polygon:hover,
   .lot-polygon:focus {
-    fill: rgba(34,224,79,0.24);
+    fill: rgba(81,135,70,0.24);
     stroke-width: 4;
   }
   .lot-polygon.lot-reserved { stroke: #c99435; fill: rgba(201,148,53,0.08); }
@@ -496,7 +496,7 @@
     border-radius: 50%;
     border: 2px solid #fff;
     background: var(--brand-green);
-    box-shadow: 0 0 0 5px rgba(34,224,79,0.22), 0 8px 22px rgba(6,57,21,0.28);
+    box-shadow: 0 0 0 5px rgba(81,135,70,0.22), 0 8px 22px rgba(33,58,33,0.24);
     cursor: pointer;
   }
   .lot-hotspot::after {
@@ -508,11 +508,11 @@
   }
   .lot-hotspot.lot-reserved {
     background: #c99435;
-    box-shadow: 0 0 0 5px rgba(201,148,53,0.22), 0 8px 22px rgba(6,57,21,0.28);
+    box-shadow: 0 0 0 5px rgba(201,148,53,0.22), 0 8px 22px rgba(33,58,33,0.24);
   }
   .lot-hotspot.lot-sold {
     background: #b86b5d;
-    box-shadow: 0 0 0 5px rgba(184,107,93,0.22), 0 8px 22px rgba(6,57,21,0.28);
+    box-shadow: 0 0 0 5px rgba(184,107,93,0.22), 0 8px 22px rgba(33,58,33,0.24);
   }
   .lot-tooltip {
     position: absolute;
@@ -554,7 +554,7 @@
     margin-top: 8px;
     padding: 3px 7px;
     border-radius: 999px;
-    background: rgba(34,224,79,0.14);
+    background: rgba(81,135,70,0.14);
     color: var(--brand-green);
     font-size: 11px;
     font-weight: 600;
@@ -585,7 +585,7 @@
     right: 18px;
     background: rgba(255, 255, 255, 0.88);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(6,57,21,0.16);
+    border: 1px solid rgba(33,58,33,0.14);
     border-radius: 20px;
     padding: 5px 12px;
     font-size: 11px;
@@ -601,7 +601,7 @@
   }
   .coords-badge:hover {
     background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(34,224,79,0.38);
+    border-color: rgba(81,135,70,0.38);
     color: var(--text-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   }
@@ -643,7 +643,7 @@
   }
   .lot-card-head {
     padding: 18px 18px 14px;
-    background: linear-gradient(180deg, rgba(34,224,79,0.12), rgba(34,224,79,0));
+    background: linear-gradient(180deg, rgba(81,135,70,0.12), rgba(81,135,70,0));
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -666,7 +666,7 @@
   .lot-card-close {
     width: 34px;
     height: 34px;
-    border: 1px solid rgba(6,57,21,0.16);
+    border: 1px solid rgba(33,58,33,0.14);
     border-radius: 50%;
     background: rgba(255,255,255,0.82);
     color: var(--brand-green-deep);
@@ -691,7 +691,7 @@
     margin-bottom: 12px;
   }
   .lot-card-field {
-    border: 1px solid rgba(6,57,21,0.10);
+    border: 1px solid rgba(33,58,33,0.10);
     border-radius: 18px;
     background: rgba(247,244,236,0.72);
     padding: 10px;
@@ -721,10 +721,10 @@
     gap: 8px;
   }
   .lot-action {
-    border: 1px solid rgba(34,224,79,0.26);
+    border: 1px solid rgba(81,135,70,0.26);
     border-radius: 999px;
     padding: 10px 12px;
-    background: rgba(34,224,79,0.10);
+    background: rgba(81,135,70,0.10);
     color: var(--brand-green-deep);
     font-size: 12px;
     font-weight: 800;
@@ -779,8 +779,8 @@
   .loading-screen {
     position: absolute; inset: 0;
     background:
-      radial-gradient(circle at 28% 24%, rgba(34,224,79,0.16), transparent 30%),
-      radial-gradient(circle at 74% 72%, rgba(6,57,21,0.14), transparent 32%),
+      radial-gradient(circle at 28% 24%, rgba(81,135,70,0.16), transparent 30%),
+      radial-gradient(circle at 74% 72%, rgba(33,58,33,0.11), transparent 32%),
       linear-gradient(135deg, #f7f4ec 0%, #ffffff 46%, #edf4ea 100%);
     background-size: 140% 140%;
     display: flex; flex-direction: column;
@@ -797,7 +797,7 @@
     width: min(580px, 82vw);
     height: min(580px, 82vw);
     border-radius: 50%;
-    background: rgba(34,224,79,0.08);
+    background: rgba(81,135,70,0.08);
     filter: blur(2px);
     animation: loadingHalo 5.6s ease-in-out infinite;
   }
@@ -882,7 +882,7 @@
   .error-screen {
     position: absolute; inset: 0;
     background:
-      radial-gradient(circle at 50% 28%, rgba(92,255,126,0.10), transparent 34%),
+      radial-gradient(circle at 50% 28%, rgba(143,191,114,0.10), transparent 34%),
       var(--bg-dark);
     display: none;
     flex-direction: column;
@@ -946,7 +946,7 @@
       width: auto;
       max-height: min(58dvh, 440px);
       border-left: 0;
-      border: 1px solid rgba(6,57,21,0.16);
+      border: 1px solid rgba(33,58,33,0.14);
       border-radius: 24px;
       box-shadow: 0 -18px 54px rgba(16,35,22,0.28);
       z-index: 300;
@@ -990,7 +990,7 @@
     .mobile-action {
       border: 0;
       border-radius: 999px;
-      background: rgba(34,224,79,0.10);
+      background: rgba(81,135,70,0.10);
       color: var(--brand-green-deep);
       min-height: 48px;
       font-size: 12px;
@@ -1010,7 +1010,7 @@
       align-items: center;
       justify-content: center;
       background: rgba(255,255,255,0.94);
-      border: 1px solid rgba(6,57,21,0.16);
+      border: 1px solid rgba(33,58,33,0.14);
       backdrop-filter: blur(14px);
     }
     .mobile-action.map-only svg {
@@ -1023,12 +1023,12 @@
       color: white;
       min-width: 138px;
       padding: 0 18px;
-      box-shadow: 0 16px 36px rgba(34,224,79,0.34);
+      box-shadow: 0 16px 36px rgba(81,135,70,0.34);
     }
     .lot-polygon {
       stroke-width: 3.2;
       stroke-opacity: 0.88;
-      filter: drop-shadow(0 1px 4px rgba(6,57,21,0.16));
+      filter: drop-shadow(0 1px 4px rgba(33,58,33,0.14));
     }
     .pnlm-hotspot-base.pnlm-scene {
       width: 76px !important;
@@ -1049,7 +1049,7 @@
     .loading-screen::before {
       width: min(330px, 80vw);
       box-shadow:
-        0 0 0 16px rgba(34,224,79,0.035),
+        0 0 0 16px rgba(81,135,70,0.035),
         inset 0 0 42px rgba(255,255,255,0.52);
     }
   }
@@ -1139,7 +1139,7 @@
     font-size: 11px;
     font-weight: 600;
   }
-  .polygon-tooltip-status.available { background: rgba(34,224,79,0.14); color: var(--brand-green); }
+  .polygon-tooltip-status.available { background: rgba(81,135,70,0.14); color: var(--brand-green); }
   .polygon-tooltip-status.reserved { background: rgba(201,148,53,0.16); color: #9b6b1f; }
   .polygon-tooltip-status.sold { background: rgba(184,107,93,0.14); color: #9d4d42; }
 
@@ -1152,8 +1152,8 @@
     width: 340px;
     background: rgba(255,255,255,0.94);
     backdrop-filter: blur(18px);
-    border-left: 1px solid rgba(6,57,21,0.16);
-    box-shadow: -18px 0 52px rgba(6,57,21,0.20);
+    border-left: 1px solid rgba(33,58,33,0.14);
+    box-shadow: -18px 0 52px rgba(33,58,33,0.18);
     z-index: 150;
     transform: translateX(100%);
     transition: transform 0.3s ease;
@@ -1165,8 +1165,8 @@
   }
   .editor-header {
     padding: 18px;
-    border-bottom: 1px solid rgba(6,57,21,0.10);
-    background: linear-gradient(180deg, rgba(34,224,79,0.10), rgba(34,224,79,0));
+    border-bottom: 1px solid rgba(33,58,33,0.10);
+    background: linear-gradient(180deg, rgba(81,135,70,0.10), rgba(81,135,70,0));
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1220,7 +1220,7 @@
   .btn-primary {
     background: var(--accent);
     color: white;
-    box-shadow: 0 10px 24px rgba(34,224,79,0.20);
+    box-shadow: 0 10px 24px rgba(81,135,70,0.20);
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
@@ -1230,9 +1230,9 @@
     cursor: not-allowed;
   }
   .btn-secondary {
-    background: rgba(34,224,79,0.07);
+    background: rgba(81,135,70,0.07);
     color: var(--text-primary);
-    border-color: rgba(6,57,21,0.16);
+    border-color: rgba(33,58,33,0.14);
   }
   .btn-secondary:hover:not(:disabled) {
     background: var(--bg-card-hover);
@@ -1250,7 +1250,7 @@
     align-items: center;
     padding: 10px 12px;
     border-radius: 16px;
-    background: rgba(34,224,79,0.07);
+    background: rgba(81,135,70,0.07);
   }
   .editor-polygons-list {
     display: flex;
@@ -1309,7 +1309,7 @@
   }
   .btn-poly-copy:hover {
     color: var(--brand-green) !important;
-    border-color: rgba(34,224,79,0.42) !important;
+    border-color: rgba(81,135,70,0.42) !important;
   }
   .btn-poly-edit:hover {
     color: #9b6b1f !important;
@@ -2110,7 +2110,7 @@ function renderLotPolygons() {
       circle.setAttribute('cx', pt.x.toFixed(1));
       circle.setAttribute('cy', pt.y.toFixed(1));
       circle.setAttribute('r', idx === 0 ? '6' : '4');
-      circle.setAttribute('style', `fill: ${idx === 0 ? '#063915' : '#22e04f'}; stroke: #fff; stroke-width: 1.8; cursor: pointer; filter: drop-shadow(0 3px 8px rgba(6,57,21,0.28));`);
+      circle.setAttribute('style', `fill: ${idx === 0 ? '#213a21' : '#518746'}; stroke: #fff; stroke-width: 1.8; cursor: pointer; filter: drop-shadow(0 3px 8px rgba(33,58,33,0.24));`);
       circle.setAttribute('data-vertex-index', idx.toString());
       layer.appendChild(circle);
     });
