@@ -1958,7 +1958,7 @@ function hidePolygonTooltip() {
 }
 
 function scheduleHidePolygonTooltip() {
-  if (polygonTooltipHideTimer) clearTimeout(polygonTooltipHideTimer);
+  if (polygonTooltipHideTimer) return;
   polygonTooltipHideTimer = setTimeout(() => {
     polygonTooltipHideTimer = null;
     if (!isPolygonTooltipHovered && !isLotPolygonHovered) {
