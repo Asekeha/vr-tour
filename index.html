@@ -2991,7 +2991,7 @@ function renderOverviewSectors(layer, width, height) {
     polygon.setAttribute('tabindex', '0');
     polygon.setAttribute('role', 'button');
     polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
-    onActivate(polygon, () => loadScene(sector.sceneId));
+    onSectorActivate(polygon, () => loadScene(sector.sceneId));
     polygon.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
     });
@@ -3545,6 +3545,50 @@ function onActivate(element, handler) {
   });
 }
 
+function onSectorActivate(element, handler) {
+  if (!element) return;
+  let start = null;
+  let dragging = false;
+
+  element.addEventListener('pointerdown', event => {
+    start = { x: event.clientX, y: event.clientY };
+    dragging = false;
+  });
+
+  element.addEventListener('pointermove', event => {
+    if (!start || dragging) return;
+    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+    if (distance > 6) {
+      dragging = true;
+      const layer = document.getElementById('lotPolygonLayer');
+      if (layer) {
+        layer.style.pointerEvents = 'none';
+        setTimeout(() => { layer.style.pointerEvents = ''; }, 220);
+      }
+    }
+  });
+
+  element.addEventListener('pointerup', event => {
+    if (!start || dragging) {
+      start = null;
+      dragging = false;
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    start = null;
+    handler(event);
+  }, { passive: false });
+
+  element.addEventListener('click', event => {
+    if (dragging) {
+      event.preventDefault();
+      event.stopPropagation();
+      dragging = false;
+    }
+  }, true);
+}
+
 function setSidebarOpen(isOpen) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
@@ -3592,8 +3636,7 @@ onActivate(document.getElementById('topRequestButton'), openRequestForm);
 // Координаты под курсором мыши
 let lastMouseCoords = { yaw: 0, pitch: 0 };
 
-// Отслеживание движения мыши по панораме для определения координат
-document.getElementById('panorama').addEventListener('mousemove', (event) => {
+function updateMouseCoords(event) {
   if (!viewer) return;
   const coords = viewer.mouseEventToCoords(event);
   if (coords) {
@@ -3607,7 +3650,11 @@ document.getElementById('panorama').addEventListener('mousemove', (event) => {
       pitchEl.textContent = lastMouseCoords.pitch.toFixed(2);
     }
   }
-});
+}
+
+// Отслеживание движения мыши по панораме для определения координат
+document.getElementById('panorama').addEventListener('mousemove', updateMouseCoords);
+document.getElementById('lotPolygonLayer').addEventListener('mousemove', updateMouseCoords);
 
 // Оставляем стандартное меню браузера по ПКМ вместо меню Pannellum.
 document.getElementById('panorama').addEventListener('contextmenu', (event) => {
