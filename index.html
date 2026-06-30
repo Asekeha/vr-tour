@@ -2038,6 +2038,10 @@ const OVERVIEW_SCENE_ID = 'karajar-20260630-7';
 const SCENE_START_VIEWS = {
   [OVERVIEW_SCENE_ID]: { yaw: 0, pitch: -35, hfov: 120 },
 };
+const SCENE_CALIBRATION_OVERRIDES = {
+  // Sector / panorama 1: calibrated from two user-provided KML-to-panorama points.
+  'karajar-20260630-4': { headingOffset: 67.46, pitchOffset: 0.97 },
+};
 let lotPolygonsByScene = {};
 let lotGroupsByScene = {};
 let overviewSectorsByScene = {};
@@ -2491,13 +2495,19 @@ function geoCoordToPanoramaPoint(coord, sceneMeta) {
 }
 
 function sceneAutoLotMeta(row) {
+  const sceneId = row?.[COL.id];
+  const calibration = SCENE_CALIBRATION_OVERRIDES[sceneId] || {};
   const lat = parseNumberValue(row[COL.sceneLat]);
   const lng = parseNumberValue(row[COL.sceneLng]);
   const altitude = parseNumberValue(row[COL.sceneAltitude]);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(altitude) || altitude <= 0) return null;
 
-  const headingOffset = parseNumberValue(row[COL.headingOffset]);
-  const pitchOffset = parseNumberValue(row[COL.pitchOffset]);
+  const headingOffset = Number.isFinite(calibration.headingOffset)
+    ? calibration.headingOffset
+    : parseNumberValue(row[COL.headingOffset]);
+  const pitchOffset = Number.isFinite(calibration.pitchOffset)
+    ? calibration.pitchOffset
+    : parseNumberValue(row[COL.pitchOffset]);
   const radius = parseNumberValue(row[COL.lotRadiusM]);
   return {
     lat,
