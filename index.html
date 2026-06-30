@@ -1970,9 +1970,10 @@ const DEFAULT_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=51.0759
 const CLIENT_LOTS_SHEET_ID = '13fQ2yfNXnIo6I-OKWVV5z4EhEfXGrdfldxOdBTnAgio';
 const CLIENT_LOTS_GID = '2123234659';
 const LOT_GEOMETRY_URL = 'data/lots.geojson';
+const LOT_SECTOR_URL = 'data/sectors.geojson';
 const AUTO_LOT_DEFAULT_RADIUS_M = 1400;
 const LOT_GROUP_DEFAULT_SIZE = 20;
-const ENABLE_AUTO_LOTS = false;
+const ENABLE_AUTO_LOTS = true;
 const ENABLE_OVERVIEW_SECTORS = true;
 const OVERVIEW_SCENE_ID = 'karajar-20260630-7';
 const SCENE_START_VIEWS = {
@@ -1985,6 +1986,7 @@ let sceneLotDisplayModes = {};
 let activeLotGroupByScene = {};
 let lotBusinessById = new Map();
 let lotGeometryFeatures = [];
+let lotSectorFeatures = [];
 let polygonAnimationId = null;
 let activePolygonTooltipKey = null;
 let lastPolygonPointer = { x: 0, y: 0, inside: false };
@@ -2085,10 +2087,11 @@ async function loadAutoLotSources() {
   if (!ENABLE_AUTO_LOTS) {
     lotBusinessById = new Map();
     lotGeometryFeatures = [];
+    lotSectorFeatures = [];
     return;
   }
 
-  const [clientLots, geometry] = await Promise.all([
+  const [clientLots, geometry, sectors] = await Promise.all([
     fetchClientLotsData().catch(err => {
       console.warn('Клиентская таблица участков не загружена:', err);
       return [];
@@ -2097,11 +2100,16 @@ async function loadAutoLotSources() {
       console.warn('GeoJSON участков не загружен:', err);
       return [];
     }),
+    fetchLotSectors().catch(err => {
+      console.warn('GeoJSON секторов не загружен:', err);
+      return [];
+    }),
   ]);
 
   lotBusinessById = new Map(clientLots.map(lot => [lot.id, lot]));
   lotGeometryFeatures = geometry;
-  console.info(`Auto lots ready: ${lotBusinessById.size} business rows, ${lotGeometryFeatures.length} geometry features`);
+  lotSectorFeatures = sectors;
+  console.info(`Auto lots ready: ${lotBusinessById.size} business rows, ${lotGeometryFeatures.length} geometry features, ${lotSectorFeatures.length} sector features`);
 }
 
 function fetchClientLotsData() {
@@ -2145,6 +2153,13 @@ function fetchClientLotsData() {
 async function fetchLotGeometry() {
   const response = await fetch(LOT_GEOMETRY_URL, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`GeoJSON участков недоступен: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data?.features) ? data.features : [];
+}
+
+async function fetchLotSectors() {
+  const response = await fetch(LOT_SECTOR_URL, { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`GeoJSON секторов недоступен: ${response.status}`);
   const data = await response.json();
   return Array.isArray(data?.features) ? data.features : [];
 }
@@ -2378,6 +2393,33 @@ function polygonCentroidLngLat(ring) {
   };
 }
 
+function geometryOuterRing(geometry) {
+  return geometry?.type === 'Polygon'
+    ? geometry.coordinates?.[0]
+    : geometry?.type === 'MultiPolygon'
+      ? geometry.coordinates?.[0]?.[0]
+      : null;
+}
+
+function pointInRingLngLat(point, ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return false;
+  const x = point.lng;
+  const y = point.lat;
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersects = ((yi > y) !== (yj > y))
+      && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+
+  return inside;
+}
+
 function geoCoordToPanoramaPoint(coord, sceneMeta) {
   const [lng, lat] = coord;
   const distance = Math.max(1, distanceMeters(sceneMeta.lat, sceneMeta.lng, lat, lng));
@@ -2418,26 +2460,36 @@ function sceneStartViewFromRow(row) {
   return view;
 }
 
-function lotFromGeometryFeature(feature, sceneMeta) {
+function sceneIdForLotSector(feature, sectorSceneById) {
+  const ring = geometryOuterRing(feature?.geometry);
+  if (!Array.isArray(ring) || ring.length < 4) return '';
+  const centroid = polygonCentroidLngLat(ring);
+
+  const sector = lotSectorFeatures.find(sectorFeature => {
+    const sectorRing = geometryOuterRing(sectorFeature?.geometry);
+    return pointInRingLngLat(centroid, sectorRing);
+  });
+  if (!sector) return '';
+
+  const props = sector.properties || {};
+  const sectorId = String(props.sector_id || props.id || '').trim();
+  return sectorSceneById.get(sectorId) || String(props.scene_id || '').trim();
+}
+
+function lotFromGeometryFeature(feature, sceneMeta, options = {}) {
   const props = feature?.properties || {};
   const lotId = String(props.lot_id || props.kad_nomer || '').trim();
   if (!lotId) return null;
 
   const business = lotBusinessById.get(lotId);
-  if (!business?.hasStatus) return null;
 
-  const geometry = feature.geometry || {};
-  const ring = geometry.type === 'Polygon'
-    ? geometry.coordinates?.[0]
-    : geometry.type === 'MultiPolygon'
-      ? geometry.coordinates?.[0]?.[0]
-      : null;
+  const ring = geometryOuterRing(feature.geometry);
   if (!Array.isArray(ring) || ring.length < 4) return null;
 
   const centroid = polygonCentroidLngLat(ring);
   const centroidDistance = distanceMeters(sceneMeta.lat, sceneMeta.lng, centroid.lat, centroid.lng);
   const centroidBearing = bearingDegrees(sceneMeta.lat, sceneMeta.lng, centroid.lat, centroid.lng);
-  if (centroidDistance > sceneMeta.radius) return null;
+  if (!options.ignoreRadius && centroidDistance > sceneMeta.radius) return null;
 
   const points = ring
     .slice(0, -1)
@@ -2447,11 +2499,11 @@ function lotFromGeometryFeature(feature, sceneMeta) {
 
   return {
     id: lotId,
-    status: business.status,
-    area: business.area || (props.area_sotka ? `${props.area_sotka} соток` : ''),
-    price: business.price,
+    status: business?.status || 'available',
+    area: business?.area || (props.area_sotka ? `${props.area_sotka} соток` : ''),
+    price: business?.price || '',
     title: `Участок ${lotId}`,
-    text: business.address || props.address_ru || '',
+    text: business?.address || props.address_ru || '',
     link: '',
     points,
     groupSortYaw: normalizeYaw(centroidBearing + sceneMeta.headingOffset),
@@ -2462,7 +2514,19 @@ function lotFromGeometryFeature(feature, sceneMeta) {
 
 function buildAutoLotPolygons(sceneRows) {
   if (!ENABLE_AUTO_LOTS) return;
-  if (!lotBusinessById.size || !lotGeometryFeatures.length) return;
+  if (!lotGeometryFeatures.length) return;
+
+  const sectorSceneById = new Map();
+  Object.values(overviewSectorsByScene).flat().forEach(sector => {
+    if (sector.id && sector.sceneId) sectorSceneById.set(sector.id, sector.sceneId);
+  });
+  const lotSceneById = new Map();
+  lotGeometryFeatures.forEach(feature => {
+    const lotId = String(feature?.properties?.lot_id || feature?.properties?.kad_nomer || '').trim();
+    if (!lotId) return;
+    const sceneId = sceneIdForLotSector(feature, sectorSceneById);
+    if (sceneId) lotSceneById.set(lotId, sceneId);
+  });
 
   sceneRows.forEach(row => {
     const sceneId = row[COL.id];
@@ -2470,7 +2534,12 @@ function buildAutoLotPolygons(sceneRows) {
     if (!sceneMeta) return;
 
     const autoLots = lotGeometryFeatures
-      .map(feature => lotFromGeometryFeature(feature, sceneMeta))
+      .filter(feature => {
+        if (!lotSectorFeatures.length) return sceneId !== OVERVIEW_SCENE_ID;
+        const lotId = String(feature?.properties?.lot_id || feature?.properties?.kad_nomer || '').trim();
+        return lotSceneById.get(lotId) === sceneId;
+      })
+      .map(feature => lotFromGeometryFeature(feature, sceneMeta, { ignoreRadius: Boolean(lotSectorFeatures.length) }))
       .filter(Boolean);
     if (!autoLots.length) return;
     if (!lotPolygonsByScene[sceneId]) lotPolygonsByScene[sceneId] = [];
@@ -2530,7 +2599,8 @@ function buildLotGroupsForScenes(sceneRows) {
 
   sceneRows.forEach(row => {
     const sceneId = row[COL.id];
-    const mode = lotDisplayMode(row);
+    const hasAutoLots = (lotPolygonsByScene[sceneId] || []).length > 0;
+    const mode = lotDisplayMode(row) || (ENABLE_AUTO_LOTS && sceneId !== OVERVIEW_SCENE_ID && hasAutoLots ? 'groups' : '');
     sceneLotDisplayModes[sceneId] = mode;
     if (mode !== 'groups') return;
 
@@ -3335,7 +3405,12 @@ function renderLotStats(rows) {
   if (tools) tools.style.display = '';
 
   const stats = { available: 0, reserved: 0, sold: 0 };
-  if (lotBusinessById.size) {
+  const renderedAutoLots = Object.values(lotPolygonsByScene).flat();
+  if (renderedAutoLots.length) {
+    renderedAutoLots.forEach(lot => {
+      stats[statusClass(lot.status)]++;
+    });
+  } else if (lotBusinessById.size) {
     lotBusinessById.forEach(lot => {
       if (lot.hasStatus) stats[statusClass(lot.status)]++;
     });
@@ -4114,9 +4189,9 @@ function startIntroMessages() {
     }
 
     renderSidebar(rows);
-    renderLotStats(rows);
 
     const config = buildConfig(rows);
+    renderLotStats(rows);
     initViewer(config, () => {
       if (introTimer) clearInterval(introTimer);
       hideLoading();
