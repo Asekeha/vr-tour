@@ -1974,6 +1974,7 @@ const LOT_SECTOR_URL = 'data/sectors.geojson';
 const AUTO_LOT_DEFAULT_RADIUS_M = 1400;
 const LOT_GROUP_DEFAULT_SIZE = 20;
 const ENABLE_AUTO_LOTS = true;
+const ENABLE_LOT_GROUPS = false;
 const ENABLE_OVERVIEW_SECTORS = true;
 const OVERVIEW_SCENE_ID = 'karajar-20260630-7';
 const SCENE_START_VIEWS = {
@@ -2312,6 +2313,7 @@ function lotDisplayMode(row) {
 }
 
 function sceneUsesLotGroups(sceneId) {
+  if (!ENABLE_LOT_GROUPS) return false;
   if (!ENABLE_AUTO_LOTS) return false;
   if (sceneId === OVERVIEW_SCENE_ID) return false;
   return sceneLotDisplayModes[sceneId] === 'groups';
@@ -2596,6 +2598,7 @@ function sortLotsForGrouping(lots) {
 function buildLotGroupsForScenes(sceneRows) {
   lotGroupsByScene = {};
   sceneLotDisplayModes = {};
+  if (!ENABLE_LOT_GROUPS) return;
 
   sceneRows.forEach(row => {
     const sceneId = row[COL.id];
