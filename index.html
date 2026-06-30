@@ -3545,59 +3545,93 @@ function onActivate(element, handler) {
   });
 }
 
+let activeSectorDrag = null;
+let suppressSectorClick = false;
+
+function beginSectorDrag(event) {
+  activeSectorDrag = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    moved: false
+  };
+  suppressSectorClick = false;
+}
+
+function moveSectorDrag(event) {
+  if (!activeSectorDrag || !viewer) return;
+  if (activeSectorDrag.pointerId != null && event.pointerId != null && event.pointerId !== activeSectorDrag.pointerId) return;
+
+  const distance = Math.hypot(event.clientX - activeSectorDrag.x, event.clientY - activeSectorDrag.y);
+  if (distance > 4) {
+    activeSectorDrag.moved = true;
+  }
+  if (!activeSectorDrag.moved) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const dx = event.clientX - activeSectorDrag.lastX;
+  const dy = event.clientY - activeSectorDrag.lastY;
+  activeSectorDrag.lastX = event.clientX;
+  activeSectorDrag.lastY = event.clientY;
+
+  const nextYaw = viewer.getYaw() - dx * 0.12;
+  const nextPitch = Math.max(-89, Math.min(89, viewer.getPitch() + dy * 0.12));
+  viewer.lookAt(nextPitch, nextYaw, viewer.getHfov(), 0);
+}
+
+function endSectorDrag() {
+  if (activeSectorDrag?.moved) {
+    suppressSectorClick = true;
+    setTimeout(() => { suppressSectorClick = false; }, 0);
+  }
+  activeSectorDrag = null;
+}
+
+document.addEventListener('pointermove', moveSectorDrag, { passive: false });
+document.addEventListener('pointerup', endSectorDrag);
+document.addEventListener('pointercancel', endSectorDrag);
+
 function onSectorActivate(element, handler) {
   if (!element) return;
-  let start = null;
-  let dragging = false;
-
-  function passPointerToPanorama(callback, delay = 120) {
-    const layer = document.getElementById('lotPolygonLayer');
-    if (!layer) return;
-    layer.style.pointerEvents = 'none';
-    if (typeof callback === 'function') callback();
-    setTimeout(() => { layer.style.pointerEvents = ''; }, delay);
-  }
 
   element.addEventListener('pointerdown', event => {
-    start = { x: event.clientX, y: event.clientY };
-    dragging = false;
-  });
-
-  element.addEventListener('pointermove', event => {
-    if (!start || dragging) return;
-    const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-    if (distance > 6) {
-      dragging = true;
-      passPointerToPanorama(null, 220);
+    beginSectorDrag(event);
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch (err) {
+      // Synthetic events and some browsers can reject pointer capture.
     }
-  });
+  }, { passive: true });
 
   element.addEventListener('wheel', event => {
     event.preventDefault();
     event.stopPropagation();
     if (!viewer) return;
     const currentHfov = viewer.getHfov();
-    const nextHfov = Math.max(50, Math.min(120, currentHfov + event.deltaY * 0.05));
-    viewer.setHfov(nextHfov, 120);
+    const nextHfov = Math.max(50, Math.min(120, currentHfov + event.deltaY * 0.16));
+    viewer.setHfov(nextHfov, 0);
   }, { passive: false });
 
   element.addEventListener('pointerup', event => {
-    if (!start || dragging) {
-      start = null;
-      dragging = false;
+    const wasDrag = Boolean(activeSectorDrag?.moved);
+    if (!activeSectorDrag || wasDrag) {
+      endSectorDrag();
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    start = null;
+    activeSectorDrag = null;
     handler(event);
   }, { passive: false });
 
   element.addEventListener('click', event => {
-    if (dragging) {
+    if (suppressSectorClick) {
       event.preventDefault();
       event.stopPropagation();
-      dragging = false;
     }
   }, true);
 }
