@@ -3550,6 +3550,14 @@ function onSectorActivate(element, handler) {
   let start = null;
   let dragging = false;
 
+  function passPointerToPanorama(callback, delay = 120) {
+    const layer = document.getElementById('lotPolygonLayer');
+    if (!layer) return;
+    layer.style.pointerEvents = 'none';
+    if (typeof callback === 'function') callback();
+    setTimeout(() => { layer.style.pointerEvents = ''; }, delay);
+  }
+
   element.addEventListener('pointerdown', event => {
     start = { x: event.clientX, y: event.clientY };
     dragging = false;
@@ -3560,13 +3568,18 @@ function onSectorActivate(element, handler) {
     const distance = Math.hypot(event.clientX - start.x, event.clientY - start.y);
     if (distance > 6) {
       dragging = true;
-      const layer = document.getElementById('lotPolygonLayer');
-      if (layer) {
-        layer.style.pointerEvents = 'none';
-        setTimeout(() => { layer.style.pointerEvents = ''; }, 220);
-      }
+      passPointerToPanorama(null, 220);
     }
   });
+
+  element.addEventListener('wheel', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!viewer) return;
+    const currentHfov = viewer.getHfov();
+    const nextHfov = Math.max(50, Math.min(120, currentHfov + event.deltaY * 0.05));
+    viewer.setHfov(nextHfov, 120);
+  }, { passive: false });
 
   element.addEventListener('pointerup', event => {
     if (!start || dragging) {
