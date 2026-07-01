@@ -517,8 +517,9 @@
     pointer-events: auto;
     cursor: pointer;
     fill: rgba(81,135,70,0.03);
-    stroke: transparent;
-    stroke-width: 0;
+    stroke: rgba(255,255,255,0.92);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
     filter: drop-shadow(0 12px 24px rgba(16,35,22,0.30));
     transition: fill 0.15s ease;
@@ -528,14 +529,6 @@
   .sector-polygon.is-hovered {
     fill: rgba(81,135,70,0.38);
     outline: none;
-  }
-  .sector-outline {
-    pointer-events: none;
-    fill: none;
-    stroke: rgba(255,255,255,0.92);
-    stroke-width: 2.5;
-    vector-effect: non-scaling-stroke;
-    filter: drop-shadow(0 12px 24px rgba(16,35,22,0.30));
   }
   .sector-label-bg {
     pointer-events: none;
@@ -3238,82 +3231,6 @@ function projectStablePolygon(points, width, height) {
   return projected;
 }
 
-function clipCameraSegmentToNearPlane(a, b) {
-  const aVisible = a.z >= PROJECTION_NEAR_PLANE;
-  const bVisible = b.z >= PROJECTION_NEAR_PLANE;
-  if (!aVisible && !bVisible) return null;
-  if (aVisible && bVisible) return [a, b];
-
-  const t = (PROJECTION_NEAR_PLANE - a.z) / (b.z - a.z);
-  const edgePoint = {
-    x: a.x + (b.x - a.x) * t,
-    y: a.y + (b.y - a.y) * t,
-    z: PROJECTION_NEAR_PLANE,
-  };
-
-  return aVisible ? [a, edgePoint] : [edgePoint, b];
-}
-
-function clipLineToRect(a, b, minX, minY, maxX, maxY) {
-  let t0 = 0;
-  let t1 = 1;
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-
-  function clip(p, q) {
-    if (p === 0) return q >= 0;
-    const r = q / p;
-    if (p < 0) {
-      if (r > t1) return false;
-      if (r > t0) t0 = r;
-    } else {
-      if (r < t0) return false;
-      if (r < t1) t1 = r;
-    }
-    return true;
-  }
-
-  if (!clip(-dx, a.x - minX)) return null;
-  if (!clip(dx, maxX - a.x)) return null;
-  if (!clip(-dy, a.y - minY)) return null;
-  if (!clip(dy, maxY - a.y)) return null;
-
-  return [
-    { x: a.x + dx * t0, y: a.y + dy * t0 },
-    { x: a.x + dx * t1, y: a.y + dy * t1 },
-  ];
-}
-
-function projectSectorOutlineSegments(points, width, height) {
-  const segments = [];
-  const basis = currentViewBasis();
-  const marginX = width * 0.16;
-  const marginY = height * 0.16;
-
-  for (let i = 0; i < points.length; i++) {
-    const cameraA = cameraCoordsFromYawPitch(points[i], basis);
-    const cameraB = cameraCoordsFromYawPitch(points[(i + 1) % points.length], basis);
-    const clipped3d = clipCameraSegmentToNearPlane(cameraA, cameraB);
-    if (!clipped3d) continue;
-
-    const screenA = screenPointFromCameraCoords(clipped3d[0], width, height);
-    const screenB = screenPointFromCameraCoords(clipped3d[1], width, height);
-    if (!screenA || !screenB) continue;
-
-    const clipped2d = clipLineToRect(
-      screenA,
-      screenB,
-      -marginX,
-      -marginY,
-      width + marginX,
-      height + marginY
-    );
-    if (clipped2d) segments.push(clipped2d);
-  }
-
-  return segments;
-}
-
 function isPointInPolygon(point, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -3476,32 +3393,19 @@ function renderOverviewSectors(layer, width, height) {
     if (!targetRow) return;
 
     const screenPoints = projectStablePolygon(sector.points, width, height);
-    const outlineSegments = projectSectorOutlineSegments(sector.points, width, height);
-    if (screenPoints.length < 3 && !outlineSegments.length) return;
+    if (screenPoints.length < 3) return;
 
-    if (screenPoints.length >= 3) {
-      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      polygon.setAttribute('class', 'sector-polygon');
-      polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
-      polygon.setAttribute('tabindex', '0');
-      polygon.setAttribute('role', 'button');
-      polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
-      onSectorActivate(polygon, () => loadScene(sector.sceneId));
-      polygon.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
-      });
-      layer.appendChild(polygon);
-    }
-
-    outlineSegments.forEach(segment => {
-      const outline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      outline.setAttribute('class', 'sector-outline');
-      outline.setAttribute('x1', segment[0].x.toFixed(1));
-      outline.setAttribute('y1', segment[0].y.toFixed(1));
-      outline.setAttribute('x2', segment[1].x.toFixed(1));
-      outline.setAttribute('y2', segment[1].y.toFixed(1));
-      layer.appendChild(outline);
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('class', 'sector-polygon');
+    polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
+    polygon.setAttribute('tabindex', '0');
+    polygon.setAttribute('role', 'button');
+    polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
+    onSectorActivate(polygon, () => loadScene(sector.sceneId));
+    polygon.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
     });
+    layer.appendChild(polygon);
 
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
     if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
