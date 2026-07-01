@@ -437,19 +437,27 @@
   .lot-polygon.lot-sold:hover,
   .lot-polygon.lot-sold:focus { fill: rgba(255,0,10,0.36); }
   .lot-polygon.is-search-match {
-    stroke: #ffffff;
-    stroke-width: 6;
+    stroke: #f7fff1;
+    stroke-width: 4.5;
     stroke-opacity: 1;
-    fill: rgba(81,135,70,0.52);
-    filter:
-      drop-shadow(0 0 7px rgba(255,255,255,0.95))
-      drop-shadow(0 0 16px rgba(81,135,70,0.82));
+    fill: rgba(81,135,70,0.28);
+    filter: drop-shadow(0 7px 14px rgba(16,35,22,0.24));
   }
   .lot-polygon.is-search-match.lot-reserved {
-    fill: rgba(255,176,0,0.48);
+    fill: rgba(255,176,0,0.24);
   }
   .lot-polygon.is-search-match.lot-sold {
-    fill: rgba(255,0,10,0.44);
+    fill: rgba(255,0,10,0.22);
+  }
+  .lot-search-halo {
+    pointer-events: none;
+    fill: rgba(247,255,241,0.22);
+    stroke: var(--brand-green);
+    stroke-width: 9;
+    stroke-opacity: 0.82;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 8px 18px rgba(16,35,22,0.22));
   }
   .lot-number {
     pointer-events: none;
@@ -469,13 +477,18 @@
   .lot-number.lot-sold,
   .lot-number.lot-draft { fill: #ffffff; }
   .lot-number.is-search-match {
-    fill: #ffffff;
-    font-size: 19px;
-    stroke: var(--brand-green-deep);
-    stroke-width: 6px;
-    filter:
-      drop-shadow(0 0 5px rgba(255,255,255,0.95))
-      drop-shadow(0 5px 14px rgba(16,35,22,0.45));
+    fill: var(--brand-green-deep);
+    font-size: 16px;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    filter: drop-shadow(0 3px 8px rgba(16,35,22,0.26));
+  }
+  .lot-search-badge {
+    pointer-events: none;
+    fill: rgba(255,255,255,0.94);
+    stroke: var(--brand-green);
+    stroke-width: 2;
+    filter: drop-shadow(0 5px 12px rgba(16,35,22,0.22));
   }
   .lot-group-marker {
     pointer-events: auto;
@@ -3599,9 +3612,23 @@ function renderLotPolygons() {
       tooltip.style.opacity = '1';
     }
 
+    if (isSearchMatch) {
+      const halo = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      halo.setAttribute('class', 'lot-search-halo');
+      halo.setAttribute('points', validPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
+      layer.appendChild(halo);
+    }
     layer.appendChild(polygon);
 
     const center = polygonCenter(validPoints);
+    if (isSearchMatch) {
+      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      badge.setAttribute('class', 'lot-search-badge');
+      badge.setAttribute('cx', center.x.toFixed(1));
+      badge.setAttribute('cy', center.y.toFixed(1));
+      badge.setAttribute('r', '15');
+      layer.appendChild(badge);
+    }
     const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     number.setAttribute('class', `lot-number lot-${status.key}`);
     if (isSearchMatch) {
