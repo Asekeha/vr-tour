@@ -2780,6 +2780,14 @@ function normalizeYaw(deg) {
   return ((deg + 540) % 360) - 180;
 }
 
+function interpolateYawPitch(a, b, t) {
+  const yawDelta = normalizeYaw(b.yaw - a.yaw);
+  return {
+    yaw: normalizeYaw(a.yaw + yawDelta * t),
+    pitch: a.pitch + (b.pitch - a.pitch) * t,
+  };
+}
+
 function parseNumberValue(value) {
   if (typeof value === 'number') return value;
   const normalized = String(value || '').trim().replace(',', '.');
