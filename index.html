@@ -3154,11 +3154,41 @@ function isStableProjectedPolygon(points, width, height) {
   return true;
 }
 
+function isProjectedPointNearViewport(point, width, height) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
+  const marginX = width * 0.55;
+  const marginY = height * 0.55;
+  return point.x >= -marginX
+    && point.x <= width + marginX
+    && point.y >= -marginY
+    && point.y <= height + marginY;
+}
+
+function isStableProjectedSegment(a, b, width, height) {
+  if (!isProjectedPointNearViewport(a, width, height) || !isProjectedPointNearViewport(b, width, height)) return false;
+  const maxEdge = Math.max(width, height) * 0.82;
+  return Math.hypot(a.x - b.x, a.y - b.y) <= maxEdge;
+}
+
 function projectStablePolygon(points, width, height) {
   const projected = points.map(point => projectPoint(point, width, height));
   if (projected.some(point => !point)) return [];
   if (!isStableProjectedPolygon(projected, width, height)) return [];
   return projected;
+}
+
+function projectStableSegments(points, width, height) {
+  const projected = points.map(point => projectPoint(point, width, height));
+  const segments = [];
+
+  for (let i = 0; i < projected.length; i++) {
+    const a = projected[i];
+    const b = projected[(i + 1) % projected.length];
+    if (!isStableProjectedSegment(a, b, width, height)) continue;
+    segments.push([a, b]);
+  }
+
+  return segments;
 }
 
 function isPointInPolygon(point, polygon) {
@@ -3323,27 +3353,35 @@ function renderOverviewSectors(layer, width, height) {
     if (!targetRow) return;
 
     const screenPoints = projectStablePolygon(sector.points, width, height);
-    if (screenPoints.length < 3) return;
+    const outlineSegments = projectStableSegments(sector.points, width, height);
+    if (screenPoints.length < 3 && !outlineSegments.length) return;
 
-    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    polygon.setAttribute('class', 'sector-polygon');
-    polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
-    polygon.setAttribute('tabindex', '0');
-    polygon.setAttribute('role', 'button');
-    polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
-    onSectorActivate(polygon, () => loadScene(sector.sceneId));
-    polygon.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
+    if (screenPoints.length >= 3) {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('class', 'sector-polygon');
+      polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
+      polygon.setAttribute('tabindex', '0');
+      polygon.setAttribute('role', 'button');
+      polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
+      onSectorActivate(polygon, () => loadScene(sector.sceneId));
+      polygon.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
+      });
+      layer.appendChild(polygon);
+    }
+
+    outlineSegments.forEach(([a, b]) => {
+      const outline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      outline.setAttribute('class', 'sector-outline');
+      outline.setAttribute('x1', a.x.toFixed(1));
+      outline.setAttribute('y1', a.y.toFixed(1));
+      outline.setAttribute('x2', b.x.toFixed(1));
+      outline.setAttribute('y2', b.y.toFixed(1));
+      layer.appendChild(outline);
     });
-    layer.appendChild(polygon);
-
-    const outline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    outline.setAttribute('class', 'sector-outline');
-    outline.setAttribute('points', [...screenPoints, screenPoints[0]].map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
-    layer.appendChild(outline);
 
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
-    if (!labelPoint) return;
+    if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
 
     const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     labelBg.setAttribute('class', 'sector-label-bg');
