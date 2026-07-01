@@ -535,11 +535,11 @@
     pointer-events: auto;
     cursor: pointer;
     fill: rgba(81,135,70,0.03);
-    stroke: rgba(255,255,255,0.92);
-    stroke-width: 2.5;
+    stroke: transparent;
+    stroke-width: 0;
     stroke-linejoin: round;
     vector-effect: non-scaling-stroke;
-    filter: drop-shadow(0 12px 24px rgba(16,35,22,0.30));
+    filter: none;
     transition: fill 0.15s ease;
   }
   .sector-polygon:hover,
@@ -548,14 +548,30 @@
     fill: rgba(81,135,70,0.38);
     outline: none;
   }
-  .sector-label-bg {
-    pointer-events: none;
-    fill: rgba(255,255,255,0.94);
-    stroke: rgba(33,58,33,0.14);
-    stroke-width: 1;
-    filter: drop-shadow(0 8px 18px rgba(16,35,22,0.24));
+  .sector-label-group {
+    pointer-events: auto;
+    cursor: pointer;
+    outline: none;
   }
-  .sector-label {
+  .sector-label-bg {
+    pointer-events: auto;
+    fill: rgba(255,255,255,0.96);
+    stroke: rgba(33,58,33,0.16);
+    stroke-width: 1;
+    filter: drop-shadow(0 9px 20px rgba(16,35,22,0.24));
+    transition: fill 0.15s ease, stroke 0.15s ease;
+  }
+  .sector-label-group:hover .sector-label-bg,
+  .sector-label-group:focus .sector-label-bg {
+    fill: #ffffff;
+    stroke: rgba(81,135,70,0.46);
+  }
+  .sector-label-number-bg {
+    pointer-events: none;
+    fill: var(--brand-green);
+  }
+  .sector-label-number,
+  .sector-label-name {
     pointer-events: none;
     fill: var(--brand-green-deep);
     font-size: 13px;
@@ -567,32 +583,84 @@
     stroke-width: 3px;
     stroke-linejoin: round;
   }
-  .sector-stats-bg {
+  .sector-label-number {
+    fill: #ffffff;
+    font-size: 12px;
+    stroke: none;
+  }
+  .sector-label-name {
+    text-anchor: start;
+  }
+  .sector-hover-card {
     pointer-events: none;
-    fill: rgba(255,255,255,0.92);
-    stroke: rgba(33,58,33,0.14);
+    opacity: 0;
+    transition: opacity 0.14s ease;
+  }
+  .sector-label-group:hover .sector-hover-card,
+  .sector-label-group:focus .sector-hover-card {
+    opacity: 1;
+  }
+  .sector-card-bg,
+  .sector-card-arrow {
+    fill: rgba(33,58,33,0.94);
+    stroke: rgba(255,255,255,0.18);
     stroke-width: 1;
-    filter: drop-shadow(0 8px 18px rgba(16,35,22,0.22));
+    filter: drop-shadow(0 18px 34px rgba(16,35,22,0.28));
   }
-  .sector-stats-text {
+  .sector-card-title {
     pointer-events: none;
-    fill: var(--brand-green-deep);
-    font-size: 10px;
+    fill: #ffffff;
+    font-size: 12px;
     font-weight: 900;
-    dominant-baseline: central;
-    paint-order: stroke;
-    stroke: rgba(255,255,255,0.82);
-    stroke-width: 2px;
-    stroke-linejoin: round;
   }
-  .sector-stats-dot {
+  .sector-card-subtitle {
+    pointer-events: none;
+    fill: rgba(255,255,255,0.66);
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .sector-card-metric-bg {
+    fill: rgba(255,255,255,0.10);
+    stroke: rgba(255,255,255,0.10);
+    stroke-width: 1;
+  }
+  .sector-card-metric-label {
+    pointer-events: none;
+    fill: rgba(255,255,255,0.72);
+    font-size: 8px;
+    font-weight: 800;
+    text-anchor: middle;
+  }
+  .sector-card-metric-value {
+    pointer-events: none;
+    fill: #ffffff;
+    font-size: 14px;
+    font-weight: 900;
+    text-anchor: middle;
+  }
+  .sector-card-dot {
     pointer-events: none;
     fill: #4eff02;
-    stroke: rgba(33,58,33,0.22);
-    stroke-width: 1;
   }
-  .sector-stats-dot.reserved { fill: #ffb000; }
-  .sector-stats-dot.sold { fill: #ff000a; }
+  .sector-card-dot.reserved { fill: #ffb000; }
+  .sector-card-dot.sold { fill: #ff000a; }
+  .sector-outline-underlay,
+  .sector-outline {
+    pointer-events: none;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .sector-outline-underlay {
+    stroke: rgba(81,135,70,0.76);
+    stroke-width: 8;
+  }
+  .sector-outline {
+    stroke: rgba(255,255,255,0.96);
+    stroke-width: 4;
+    filter: drop-shadow(0 7px 16px rgba(16,35,22,0.32));
+  }
   .lot-group-panel {
     position: absolute;
     left: 50%;
@@ -3328,6 +3396,50 @@ function projectStablePolygon(points, width, height) {
   return projected;
 }
 
+function isStableProjectedSegment(a, b, width, height) {
+  if (!isProjectedPointNearViewport(a, width, height) || !isProjectedPointNearViewport(b, width, height)) {
+    return false;
+  }
+  const maxEdge = Math.max(width, height) * 0.28;
+  return Math.hypot(a.x - b.x, a.y - b.y) <= maxEdge;
+}
+
+function projectStableSegments(points, width, height) {
+  const segments = [];
+  const samplesPerEdge = 24;
+  const pushVisibleLine = (line) => {
+    if (line.length < 2) return;
+    const first = line[0];
+    const last = line[line.length - 1];
+    if (Math.hypot(first.x - last.x, first.y - last.y) > Math.max(width, height) * 1.1) return;
+    segments.push([first, last]);
+  };
+
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length];
+    let current = [];
+    let previous = null;
+
+    for (let step = 0; step <= samplesPerEdge; step++) {
+      const projected = projectPoint(interpolateYawPitch(point, next, step / samplesPerEdge), width, height);
+      const canUse = projected && (!previous || isStableProjectedSegment(previous, projected, width, height));
+
+      if (canUse) {
+        current.push(projected);
+      } else {
+        pushVisibleLine(current);
+        current = projected && isProjectedPointNearViewport(projected, width, height) ? [projected] : [];
+      }
+
+      previous = canUse ? projected : null;
+    }
+
+    pushVisibleLine(current);
+  });
+
+  return segments;
+}
+
 function isPointInPolygon(point, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -3484,42 +3596,141 @@ function sectorLotStats(sector) {
   return countLotsByStatus(lotPolygonsByScene[sector.sceneId] || []);
 }
 
-function appendSectorStats(layer, labelPoint, stats, width) {
-  const panelWidth = 146;
-  const panelHeight = 28;
-  const x = Math.max(8, Math.min(width - panelWidth - 8, labelPoint.x - panelWidth / 2));
-  const y = Math.max(12, labelPoint.y - 52);
+function sectorDisplayNumber(sector) {
+  const match = String(sector.title || sector.id || '').match(/\d+/);
+  return match ? match[0] : '';
+}
 
-  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  bg.setAttribute('class', 'sector-stats-bg');
-  bg.setAttribute('x', x.toFixed(1));
-  bg.setAttribute('y', y.toFixed(1));
-  bg.setAttribute('width', panelWidth);
-  bg.setAttribute('height', panelHeight);
-  bg.setAttribute('rx', '14');
-  layer.appendChild(bg);
+function appendSectorMetric(parent, x, y, item) {
+  const metricBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  metricBg.setAttribute('class', 'sector-card-metric-bg');
+  metricBg.setAttribute('x', x.toFixed(1));
+  metricBg.setAttribute('y', y.toFixed(1));
+  metricBg.setAttribute('width', '48');
+  metricBg.setAttribute('height', '44');
+  metricBg.setAttribute('rx', '10');
+  parent.appendChild(metricBg);
 
-  const items = [
-    { key: 'available', label: 'Св', value: stats.available, x: x + 26 },
-    { key: 'reserved', label: 'Бр', value: stats.reserved, x: x + 74 },
-    { key: 'sold', label: 'Пр', value: stats.sold, x: x + 122 },
-  ];
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('class', `sector-card-dot ${item.key}`);
+  dot.setAttribute('cx', (x + 14).toFixed(1));
+  dot.setAttribute('cy', (y + 14).toFixed(1));
+  dot.setAttribute('r', '3.2');
+  parent.appendChild(dot);
 
-  items.forEach(item => {
-    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    dot.setAttribute('class', `sector-stats-dot ${item.key}`);
-    dot.setAttribute('cx', (item.x - 13).toFixed(1));
-    dot.setAttribute('cy', (y + panelHeight / 2).toFixed(1));
-    dot.setAttribute('r', '3.4');
-    layer.appendChild(dot);
+  const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  value.setAttribute('class', 'sector-card-metric-value');
+  value.setAttribute('x', (x + 24).toFixed(1));
+  value.setAttribute('y', (y + 25).toFixed(1));
+  value.textContent = String(item.value);
+  parent.appendChild(value);
 
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('class', 'sector-stats-text');
-    text.setAttribute('x', (item.x - 6).toFixed(1));
-    text.setAttribute('y', (y + panelHeight / 2 + 0.2).toFixed(1));
-    text.textContent = `${item.label} ${item.value}`;
-    layer.appendChild(text);
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.setAttribute('class', 'sector-card-metric-label');
+  label.setAttribute('x', (x + 24).toFixed(1));
+  label.setAttribute('y', (y + 37).toFixed(1));
+  label.textContent = item.label;
+  parent.appendChild(label);
+}
+
+function appendSectorLabel(layer, sector, labelPoint, width) {
+  const stats = sectorLotStats(sector);
+  const labelWidth = 104;
+  const labelHeight = 34;
+  const labelX = Math.max(8, Math.min(width - labelWidth - 8, labelPoint.x - labelWidth / 2));
+  const labelY = Math.max(12, labelPoint.y - labelHeight / 2);
+  const centerX = labelX + labelWidth / 2;
+  const cardWidth = 190;
+  const cardHeight = 100;
+  const cardX = Math.max(8, Math.min(width - cardWidth - 8, centerX - cardWidth / 2));
+  const cardY = Math.max(12, labelY - cardHeight - 14);
+  const number = sectorDisplayNumber(sector);
+
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('class', 'sector-label-group');
+  group.setAttribute('tabindex', '0');
+  group.setAttribute('role', 'button');
+  group.setAttribute(
+    'aria-label',
+    `${sector.title}: свободные ${stats.available}, бронь ${stats.reserved}, проданные ${stats.sold}. Перейти к сектору.`
+  );
+
+  const hoverCard = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  hoverCard.setAttribute('class', 'sector-hover-card');
+
+  const cardBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  cardBg.setAttribute('class', 'sector-card-bg');
+  cardBg.setAttribute('x', cardX.toFixed(1));
+  cardBg.setAttribute('y', cardY.toFixed(1));
+  cardBg.setAttribute('width', cardWidth);
+  cardBg.setAttribute('height', cardHeight);
+  cardBg.setAttribute('rx', '8');
+  hoverCard.appendChild(cardBg);
+
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const arrowX = Math.max(cardX + 22, Math.min(cardX + cardWidth - 22, centerX));
+  arrow.setAttribute('class', 'sector-card-arrow');
+  arrow.setAttribute('d', `M ${arrowX - 8} ${cardY + cardHeight - 1} L ${arrowX + 8} ${cardY + cardHeight - 1} L ${centerX} ${labelY - 7} Z`);
+  hoverCard.appendChild(arrow);
+
+  const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  title.setAttribute('class', 'sector-card-title');
+  title.setAttribute('x', (cardX + 14).toFixed(1));
+  title.setAttribute('y', (cardY + 23).toFixed(1));
+  title.textContent = sector.title;
+  hoverCard.appendChild(title);
+
+  const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  subtitle.setAttribute('class', 'sector-card-subtitle');
+  subtitle.setAttribute('x', (cardX + 14).toFixed(1));
+  subtitle.setAttribute('y', (cardY + 39).toFixed(1));
+  subtitle.textContent = 'Статистика участков';
+  hoverCard.appendChild(subtitle);
+
+  [
+    { key: 'available', label: 'Свободно', value: stats.available },
+    { key: 'reserved', label: 'Бронь', value: stats.reserved },
+    { key: 'sold', label: 'Продано', value: stats.sold },
+  ].forEach((item, index) => appendSectorMetric(hoverCard, cardX + 14 + index * 58, cardY + 48, item));
+
+  group.appendChild(hoverCard);
+
+  const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  labelBg.setAttribute('class', 'sector-label-bg');
+  labelBg.setAttribute('x', labelX.toFixed(1));
+  labelBg.setAttribute('y', labelY.toFixed(1));
+  labelBg.setAttribute('width', labelWidth);
+  labelBg.setAttribute('height', labelHeight);
+  labelBg.setAttribute('rx', '17');
+  group.appendChild(labelBg);
+
+  const numberBg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  numberBg.setAttribute('class', 'sector-label-number-bg');
+  numberBg.setAttribute('cx', (labelX + 18).toFixed(1));
+  numberBg.setAttribute('cy', (labelY + labelHeight / 2).toFixed(1));
+  numberBg.setAttribute('r', '12');
+  group.appendChild(numberBg);
+
+  const numberText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  numberText.setAttribute('class', 'sector-label-number');
+  numberText.setAttribute('x', (labelX + 18).toFixed(1));
+  numberText.setAttribute('y', (labelY + labelHeight / 2 + 0.3).toFixed(1));
+  numberText.textContent = number || '•';
+  group.appendChild(numberText);
+
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.setAttribute('class', 'sector-label-name');
+  label.setAttribute('x', (labelX + 38).toFixed(1));
+  label.setAttribute('y', (labelY + labelHeight / 2 + 0.3).toFixed(1));
+  label.textContent = 'Сектор';
+  group.appendChild(label);
+
+  onSectorActivate(group, () => loadScene(sector.sceneId));
+  group.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
   });
+
+  layer.appendChild(group);
 }
 
 function renderOverviewSectors(layer, width, height) {
@@ -3532,40 +3743,36 @@ function renderOverviewSectors(layer, width, height) {
     if (!targetRow) return;
 
     const screenPoints = projectStablePolygon(sector.points, width, height);
-    if (screenPoints.length < 3) return;
+    const outlineSegments = projectStableSegments(sector.points, width, height);
+    if (screenPoints.length < 3 && !outlineSegments.length) return;
 
-    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    polygon.setAttribute('class', 'sector-polygon');
-    polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
-    polygon.setAttribute('tabindex', '0');
-    polygon.setAttribute('role', 'button');
-    polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
-    onSectorActivate(polygon, () => loadScene(sector.sceneId));
-    polygon.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
+    if (screenPoints.length >= 3) {
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('class', 'sector-polygon');
+      polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
+      polygon.setAttribute('tabindex', '0');
+      polygon.setAttribute('role', 'button');
+      polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
+      onSectorActivate(polygon, () => loadScene(sector.sceneId));
+      polygon.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
+      });
+      layer.appendChild(polygon);
+    }
+
+    outlineSegments.forEach(segment => {
+      ['sector-outline-underlay', 'sector-outline'].forEach(className => {
+        const outline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+        outline.setAttribute('class', className);
+        outline.setAttribute('points', segment.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
+        layer.appendChild(outline);
+      });
     });
-    layer.appendChild(polygon);
 
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
     if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
 
-    appendSectorStats(layer, labelPoint, sectorLotStats(sector), width);
-
-    const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    labelBg.setAttribute('class', 'sector-label-bg');
-    labelBg.setAttribute('x', (labelPoint.x - 44).toFixed(1));
-    labelBg.setAttribute('y', (labelPoint.y - 16).toFixed(1));
-    labelBg.setAttribute('width', '88');
-    labelBg.setAttribute('height', '32');
-    labelBg.setAttribute('rx', '16');
-    layer.appendChild(labelBg);
-
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('class', 'sector-label');
-    label.setAttribute('x', labelPoint.x.toFixed(1));
-    label.setAttribute('y', labelPoint.y.toFixed(1));
-    label.textContent = sector.title;
-    layer.appendChild(label);
+    appendSectorLabel(layer, sector, labelPoint, width);
   });
 }
 
