@@ -436,6 +436,21 @@
   .lot-polygon.lot-sold.is-hovered,
   .lot-polygon.lot-sold:hover,
   .lot-polygon.lot-sold:focus { fill: rgba(255,0,10,0.36); }
+  .lot-polygon.is-search-match {
+    stroke: #ffffff;
+    stroke-width: 6;
+    stroke-opacity: 1;
+    fill: rgba(81,135,70,0.52);
+    filter:
+      drop-shadow(0 0 7px rgba(255,255,255,0.95))
+      drop-shadow(0 0 16px rgba(81,135,70,0.82));
+  }
+  .lot-polygon.is-search-match.lot-reserved {
+    fill: rgba(255,176,0,0.48);
+  }
+  .lot-polygon.is-search-match.lot-sold {
+    fill: rgba(255,0,10,0.44);
+  }
   .lot-number {
     pointer-events: none;
     paint-order: stroke;
@@ -453,6 +468,15 @@
   .lot-number.lot-reserved,
   .lot-number.lot-sold,
   .lot-number.lot-draft { fill: #ffffff; }
+  .lot-number.is-search-match {
+    fill: #ffffff;
+    font-size: 19px;
+    stroke: var(--brand-green-deep);
+    stroke-width: 6px;
+    filter:
+      drop-shadow(0 0 5px rgba(255,255,255,0.95))
+      drop-shadow(0 5px 14px rgba(16,35,22,0.45));
+  }
   .lot-group-marker {
     pointer-events: auto;
     cursor: pointer;
@@ -2217,6 +2241,7 @@ let isPolygonTooltipHovered = false;
 let isLotPolygonHovered = false;
 let polygonTooltipHideTimer = null;
 let activeLot = null;
+let highlightedLotMatch = null;
 const activeLotStatuses = new Set(['available', 'reserved', 'sold']);
 const urlParams = new URLSearchParams(location.search);
 const isLocalEditorHost = ['localhost', '127.0.0.1', '::1', ''].includes(location.hostname);
@@ -3414,6 +3439,7 @@ let lastRenderState = {
   drawingPointsStr: '',
   hoveredLotKey: null,
   activeGroupId: null,
+  highlightedLotMatch: null,
 };
 
 function renderLotPolygons() {
@@ -3444,7 +3470,8 @@ function renderLotPolygons() {
     lastRenderState.isDrawingMode !== isDrawingMode ||
     lastRenderState.drawingPointsStr !== drawingPointsStr ||
     lastRenderState.hoveredLotKey !== hoveredLotKey ||
-    lastRenderState.activeGroupId !== activeGroupId;
+    lastRenderState.activeGroupId !== activeGroupId ||
+    lastRenderState.highlightedLotMatch !== JSON.stringify(highlightedLotMatch);
 
   if (!stateChanged) {
     return;
@@ -3461,6 +3488,7 @@ function renderLotPolygons() {
     drawingPointsStr,
     hoveredLotKey,
     activeGroupId,
+    highlightedLotMatch: JSON.stringify(highlightedLotMatch),
   };
 
   const tooltip = document.getElementById('polygonTooltip');
@@ -3501,6 +3529,9 @@ function renderLotPolygons() {
     if (validPoints.length < 3) return;
 
     const status = statusInfo(lot.status);
+    const isSearchMatch = highlightedLotMatch
+      && highlightedLotMatch.sceneId === currentSceneId
+      && highlightedLotMatch.lotKey === polygonTooltipKey(lot);
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     polygon.setAttribute('class', `lot-polygon lot-${status.key}`);
     polygon.setAttribute('points', validPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
@@ -3512,6 +3543,9 @@ function renderLotPolygons() {
       polygon.classList.add('is-hovered');
       hoveredLot = lot;
       hoveredLotPoints = validPoints;
+    }
+    if (isSearchMatch) {
+      polygon.classList.add('is-search-match');
     }
 
     onActivate(polygon, () => openLotCard(lot));
@@ -3537,6 +3571,9 @@ function renderLotPolygons() {
     const center = polygonCenter(validPoints);
     const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     number.setAttribute('class', `lot-number lot-${status.key}`);
+    if (isSearchMatch) {
+      number.classList.add('is-search-match');
+    }
     number.setAttribute('x', center.x.toFixed(1));
     number.setAttribute('y', center.y.toFixed(1));
     number.textContent = String(lot.displayNumber || index + 1);
@@ -4648,9 +4685,15 @@ function startIntroMessages() {
   input.addEventListener('input', () => {
     const query = input.value.trim();
     foundTarget = findLotByKey(query);
+    if (!query) {
+      highlightedLotMatch = null;
+      renderLotPolygons();
+    }
     if (foundTarget) {
       btn.style.display = 'inline-flex';
     } else {
+      highlightedLotMatch = null;
+      renderLotPolygons();
       btn.style.display = 'none';
     }
   });
@@ -4659,7 +4702,9 @@ function startIntroMessages() {
     if (e.key === 'Escape') {
       input.value = '';
       foundTarget = null;
+      highlightedLotMatch = null;
       btn.style.display = 'none';
+      renderLotPolygons();
       setSearchOpen(false);
       openBtn.focus();
       return;
@@ -4682,6 +4727,7 @@ function startIntroMessages() {
 
     const points = lot.points;
     if (!points || !points.length) return;
+    highlightedLotMatch = { sceneId, lotKey: polygonTooltipKey(lot) };
 
     const avgYaw = points.reduce((sum, p) => sum + p.yaw, 0) / points.length;
     const avgPitch = points.reduce((sum, p) => sum + p.pitch, 0) / points.length;
@@ -4696,6 +4742,7 @@ function startIntroMessages() {
         openLotGroup(matchingGroup.id);
       }
       viewer.lookAt(avgPitch, avgYaw, targetHfov, 900);
+      renderLotPolygons();
       openLotCard(lot);
     } else {
       if (matchingGroup) {
@@ -4716,6 +4763,7 @@ function startIntroMessages() {
 
       // Открываем карточку участка после загрузки сцены
       setTimeout(() => {
+        renderLotPolygons();
         openLotCard(lot);
       }, 1000);
     }
