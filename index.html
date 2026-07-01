@@ -3116,6 +3116,33 @@ function projectPoint(point, width, height) {
   };
 }
 
+function isStableProjectedPolygon(points, width, height) {
+  if (!Array.isArray(points) || points.length < 3) return false;
+  if (points.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return false;
+
+  const xs = points.map(point => point.x);
+  const ys = points.map(point => point.y);
+  const spanX = Math.max(...xs) - Math.min(...xs);
+  const spanY = Math.max(...ys) - Math.min(...ys);
+  if (spanX > width * 2.4 || spanY > height * 2.4) return false;
+
+  const maxEdge = Math.max(width, height) * 1.35;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    if (Math.hypot(a.x - b.x, a.y - b.y) > maxEdge) return false;
+  }
+
+  return true;
+}
+
+function projectStablePolygon(points, width, height) {
+  const projected = points.map(point => projectPoint(point, width, height));
+  if (projected.some(point => !point)) return [];
+  if (!isStableProjectedPolygon(projected, width, height)) return [];
+  return projected;
+}
+
 function isPointInPolygon(point, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -3277,7 +3304,7 @@ function renderOverviewSectors(layer, width, height) {
     const targetRow = rowForScene(sector.sceneId);
     if (!targetRow) return;
 
-    const screenPoints = sector.points.map(point => projectPoint(point, width, height)).filter(Boolean);
+    const screenPoints = projectStablePolygon(sector.points, width, height);
     if (screenPoints.length < 3) return;
 
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
