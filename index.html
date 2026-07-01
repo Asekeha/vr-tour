@@ -410,6 +410,18 @@
     z-index: 20;
     pointer-events: none;
     touch-action: none;
+    opacity: 1;
+    transition: opacity 0.18s ease;
+  }
+  #lotPolygonLayer.is-loading {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #lotPolygonLayer *,
+  #lotPolygonLayer *:focus,
+  #lotPolygonLayer *:focus-visible,
+  #lotPolygonLayer *:active {
+    outline: none;
   }
   .lot-polygon {
     pointer-events: auto;
@@ -421,6 +433,12 @@
     fill: rgba(255,255,255,0);
     filter: drop-shadow(0 3px 8px rgba(78,255,2,0.22));
     transition: fill 0.15s, stroke-width 0.15s, stroke-opacity 0.15s;
+    outline: none;
+  }
+  .lot-polygon:focus,
+  .lot-polygon:focus-visible,
+  .lot-polygon:active {
+    outline: none;
   }
   .lot-polygon.is-hovered,
   .lot-polygon:hover,
@@ -549,6 +567,32 @@
     stroke-width: 3px;
     stroke-linejoin: round;
   }
+  .sector-stats-bg {
+    pointer-events: none;
+    fill: rgba(255,255,255,0.92);
+    stroke: rgba(33,58,33,0.14);
+    stroke-width: 1;
+    filter: drop-shadow(0 8px 18px rgba(16,35,22,0.22));
+  }
+  .sector-stats-text {
+    pointer-events: none;
+    fill: var(--brand-green-deep);
+    font-size: 10px;
+    font-weight: 900;
+    dominant-baseline: central;
+    paint-order: stroke;
+    stroke: rgba(255,255,255,0.82);
+    stroke-width: 2px;
+    stroke-linejoin: round;
+  }
+  .sector-stats-dot {
+    pointer-events: none;
+    fill: #4eff02;
+    stroke: rgba(33,58,33,0.22);
+    stroke-width: 1;
+  }
+  .sector-stats-dot.reserved { fill: #ffb000; }
+  .sector-stats-dot.sold { fill: #ff000a; }
   .lot-group-panel {
     position: absolute;
     left: 50%;
@@ -1006,10 +1050,13 @@
     backdrop-filter: blur(12px);
     cursor: pointer;
     z-index: 90;
-    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    transition: left 0.22s ease, opacity 0.16s ease, transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   }
   .back-overview-button.is-visible {
     display: inline-flex;
+  }
+  body.sidebar-open .back-overview-button.is-visible {
+    left: calc(var(--sidebar-w) + 34px);
   }
   .back-overview-button:hover,
   .back-overview-button:focus {
@@ -1375,6 +1422,12 @@
     }
     .back-overview-button span {
       display: none;
+    }
+    body.sidebar-open .back-overview-button.is-visible {
+      left: calc(12px + env(safe-area-inset-left, 0px));
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
     }
     .coords-badge {
       top: calc(82px + env(safe-area-inset-top, 0px));
@@ -2259,6 +2312,7 @@ const ENABLE_LOT_GROUPS = false;
 const ENABLE_OVERVIEW_SECTORS = true;
 const START_SCENE_ID = 'karajar-20260630-7';
 const OVERVIEW_SCENE_ID = 'karajar-20260630-7';
+const CURRENT_SCENE_STORAGE_KEY = 'landjer-vr-tour-current-scene';
 const SCENE_START_VIEWS = {
   [OVERVIEW_SCENE_ID]: { yaw: 0, pitch: -35, hfov: 120 },
 };
@@ -3426,6 +3480,48 @@ function rowForScene(sceneId) {
   return allScenes.find(row => row[COL.id] === sceneId) || null;
 }
 
+function sectorLotStats(sector) {
+  return countLotsByStatus(lotPolygonsByScene[sector.sceneId] || []);
+}
+
+function appendSectorStats(layer, labelPoint, stats, width) {
+  const panelWidth = 146;
+  const panelHeight = 28;
+  const x = Math.max(8, Math.min(width - panelWidth - 8, labelPoint.x - panelWidth / 2));
+  const y = Math.max(12, labelPoint.y - 52);
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('class', 'sector-stats-bg');
+  bg.setAttribute('x', x.toFixed(1));
+  bg.setAttribute('y', y.toFixed(1));
+  bg.setAttribute('width', panelWidth);
+  bg.setAttribute('height', panelHeight);
+  bg.setAttribute('rx', '14');
+  layer.appendChild(bg);
+
+  const items = [
+    { key: 'available', label: 'Св', value: stats.available, x: x + 26 },
+    { key: 'reserved', label: 'Бр', value: stats.reserved, x: x + 74 },
+    { key: 'sold', label: 'Пр', value: stats.sold, x: x + 122 },
+  ];
+
+  items.forEach(item => {
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('class', `sector-stats-dot ${item.key}`);
+    dot.setAttribute('cx', (item.x - 13).toFixed(1));
+    dot.setAttribute('cy', (y + panelHeight / 2).toFixed(1));
+    dot.setAttribute('r', '3.4');
+    layer.appendChild(dot);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('class', 'sector-stats-text');
+    text.setAttribute('x', (item.x - 6).toFixed(1));
+    text.setAttribute('y', (y + panelHeight / 2 + 0.2).toFixed(1));
+    text.textContent = `${item.label} ${item.value}`;
+    layer.appendChild(text);
+  });
+}
+
 function renderOverviewSectors(layer, width, height) {
   if (!ENABLE_OVERVIEW_SECTORS) return;
   if (currentSceneId !== OVERVIEW_SCENE_ID) return;
@@ -3452,6 +3548,8 @@ function renderOverviewSectors(layer, width, height) {
 
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
     if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
+
+    appendSectorStats(layer, labelPoint, sectorLotStats(sector), width);
 
     const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     labelBg.setAttribute('class', 'sector-label-bg');
@@ -3918,8 +4016,10 @@ function loadScene(sceneId) {
   rememberReturnScene(previousSceneId, sceneId);
   hidePolygonTooltip();
   closeLotCard();
+  setPolygonLayerLoading(true);
   viewer.loadScene(sceneId);
   currentSceneId = sceneId;
+  persistCurrentSceneId(sceneId);
   updateSidebarActive(sceneId);
   updateOverlay(sceneId);
   updateBackToOverviewButton(sceneId);
@@ -3965,8 +4065,27 @@ function isHighAltitudeScene(sceneId) {
   return Number.isFinite(altitude) && altitude >= 350;
 }
 
+function storedSceneId(sceneOrder) {
+  try {
+    const sceneId = localStorage.getItem(CURRENT_SCENE_STORAGE_KEY);
+    return sceneOrder.includes(sceneId) ? sceneId : '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function persistCurrentSceneId(sceneId) {
+  if (!sceneId) return;
+  try {
+    localStorage.setItem(CURRENT_SCENE_STORAGE_KEY, sceneId);
+  } catch (err) {
+    // Browsers can block localStorage in strict privacy modes.
+  }
+}
+
 function initialSceneId(sceneOrder) {
-  return sceneOrder.includes(START_SCENE_ID) ? START_SCENE_ID : sceneOrder[0];
+  return storedSceneId(sceneOrder)
+    || (sceneOrder.includes(START_SCENE_ID) ? START_SCENE_ID : sceneOrder[0]);
 }
 
 function returnSceneId() {
@@ -4050,6 +4169,12 @@ function scheduleNearbyPanoramaPreload(sceneId) {
   }
 }
 
+function setPolygonLayerLoading(isLoading) {
+  const layer = document.getElementById('lotPolygonLayer');
+  if (!layer) return;
+  layer.classList.toggle('is-loading', Boolean(isLoading));
+}
+
 // Инициализация viewer
 function initViewer(config, onFirstLoad) {
   tourConfig = config;
@@ -4058,15 +4183,19 @@ function initViewer(config, onFirstLoad) {
 
   const firstId = config.default.firstScene;
   currentSceneId = firstId;
+  persistCurrentSceneId(firstId);
   rememberReturnScene(null, firstId);
   updateSidebarActive(firstId);
   updateOverlay(firstId);
   updateBackToOverviewButton(firstId);
   renderLotGroupPanel();
+  setPolygonLayerLoading(true);
   startPolygonRenderer();
   updateSavedPolygonsList();
 
   viewer.on('load', () => {
+    setPolygonLayerLoading(false);
+    renderLotPolygons();
     scheduleNearbyPanoramaPreload(currentSceneId);
     if (!firstLoadHandled) {
       firstLoadHandled = true;
@@ -4079,7 +4208,9 @@ function initViewer(config, onFirstLoad) {
     rememberReturnScene(previousSceneId, id);
     hidePolygonTooltip();
     closeLotCard();
+    setPolygonLayerLoading(true);
     currentSceneId = id;
+    persistCurrentSceneId(id);
     updateSidebarActive(id);
     updateOverlay(id);
     updateBackToOverviewButton(id);
@@ -4825,8 +4956,10 @@ function startIntroMessages() {
       rememberReturnScene(currentSceneId, sceneId);
       hidePolygonTooltip();
       closeLotCard();
+      setPolygonLayerLoading(true);
       viewer.loadScene(sceneId, avgPitch, avgYaw, targetHfov);
       currentSceneId = sceneId;
+      persistCurrentSceneId(sceneId);
       updateSidebarActive(sceneId);
       updateOverlay(sceneId);
       updateBackToOverviewButton(sceneId);
