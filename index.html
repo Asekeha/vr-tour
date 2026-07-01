@@ -3154,27 +3154,45 @@ function cross(a, b) {
   };
 }
 
-function projectPoint(point, width, height) {
+const PROJECTION_NEAR_PLANE = 0.035;
+
+function currentViewBasis() {
   const yaw = viewer.getYaw();
   const pitch = viewer.getPitch();
-  const hfov = viewer.getHfov() * Math.PI / 180;
-  const target = toVector(point.yaw, point.pitch);
   const forward = toVector(yaw, pitch);
   const yawRad = yaw * Math.PI / 180;
   const right = { x: Math.cos(yawRad), y: 0, z: -Math.sin(yawRad) };
   const up = cross(forward, right);
+  return { forward, right, up };
+}
 
-  const x = dot(target, right);
-  const y = dot(target, up);
-  const z = dot(target, forward);
-  if (z <= 0.02) return null;
+function cameraCoordsFromYawPitch(point, basis) {
+  const target = toVector(point.yaw, point.pitch);
+  return {
+    x: dot(target, basis.right),
+    y: dot(target, basis.up),
+    z: dot(target, basis.forward),
+  };
+}
 
+function screenPointFromCameraCoords(cameraPoint, width, height) {
+  if (cameraPoint.z <= PROJECTION_NEAR_PLANE) return null;
+
+  const hfov = viewer.getHfov() * Math.PI / 180;
   const tanH = Math.tan(hfov / 2);
   const tanV = tanH * (height / width);
   return {
-    x: width / 2 + (x / z) / tanH * width / 2,
-    y: height / 2 - (y / z) / tanV * height / 2,
+    x: width / 2 + (cameraPoint.x / cameraPoint.z) / tanH * width / 2,
+    y: height / 2 - (cameraPoint.y / cameraPoint.z) / tanV * height / 2,
   };
+}
+
+function projectPoint(point, width, height) {
+  return screenPointFromCameraCoords(
+    cameraCoordsFromYawPitch(point, currentViewBasis()),
+    width,
+    height
+  );
 }
 
 function isStableProjectedPolygon(points, width, height) {
@@ -3205,26 +3223,12 @@ function isStableProjectedPolygon(points, width, height) {
 
 function isProjectedPointNearViewport(point, width, height) {
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
-  const marginX = width * 1.35;
-  const marginY = height * 1.35;
+  const marginX = width * 0.4;
+  const marginY = height * 0.4;
   return point.x >= -marginX
     && point.x <= width + marginX
     && point.y >= -marginY
     && point.y <= height + marginY;
-}
-
-function isStableProjectedSegment(a, b, width, height) {
-  if (!isProjectedPointNearViewport(a, width, height) || !isProjectedPointNearViewport(b, width, height)) return false;
-  const maxEdge = Math.max(width, height) * 1.55;
-  return Math.hypot(a.x - b.x, a.y - b.y) <= maxEdge;
-}
-
-function interpolateYawPitch(a, b, t) {
-  const yawDelta = normalizeYaw(b.yaw - a.yaw);
-  return {
-    yaw: normalizeYaw(a.yaw + yawDelta * t),
-    pitch: a.pitch + (b.pitch - a.pitch) * t,
-  };
 }
 
 function projectStablePolygon(points, width, height) {
@@ -3234,22 +3238,77 @@ function projectStablePolygon(points, width, height) {
   return projected;
 }
 
-function projectStableSegments(points, width, height) {
+function clipCameraSegmentToNearPlane(a, b) {
+  const aVisible = a.z >= PROJECTION_NEAR_PLANE;
+  const bVisible = b.z >= PROJECTION_NEAR_PLANE;
+  if (!aVisible && !bVisible) return null;
+  if (aVisible && bVisible) return [a, b];
+
+  const t = (PROJECTION_NEAR_PLANE - a.z) / (b.z - a.z);
+  const edgePoint = {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    z: PROJECTION_NEAR_PLANE,
+  };
+
+  return aVisible ? [a, edgePoint] : [edgePoint, b];
+}
+
+function clipLineToRect(a, b, minX, minY, maxX, maxY) {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+
+  function clip(p, q) {
+    if (p === 0) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  }
+
+  if (!clip(-dx, a.x - minX)) return null;
+  if (!clip(dx, maxX - a.x)) return null;
+  if (!clip(-dy, a.y - minY)) return null;
+  if (!clip(dy, maxY - a.y)) return null;
+
+  return [
+    { x: a.x + dx * t0, y: a.y + dy * t0 },
+    { x: a.x + dx * t1, y: a.y + dy * t1 },
+  ];
+}
+
+function projectSectorOutlineSegments(points, width, height) {
   const segments = [];
-  const samplesPerEdge = 5;
+  const basis = currentViewBasis();
+  const marginX = width * 0.16;
+  const marginY = height * 0.16;
 
   for (let i = 0; i < points.length; i++) {
-    const a = points[i];
-    const b = points[(i + 1) % points.length];
-    let previous = null;
+    const cameraA = cameraCoordsFromYawPitch(points[i], basis);
+    const cameraB = cameraCoordsFromYawPitch(points[(i + 1) % points.length], basis);
+    const clipped3d = clipCameraSegmentToNearPlane(cameraA, cameraB);
+    if (!clipped3d) continue;
 
-    for (let step = 0; step <= samplesPerEdge; step++) {
-      const projected = projectPoint(interpolateYawPitch(a, b, step / samplesPerEdge), width, height);
-      if (previous && isStableProjectedSegment(previous, projected, width, height)) {
-        segments.push([previous, projected]);
-      }
-      previous = isProjectedPointNearViewport(projected, width, height) ? projected : null;
-    }
+    const screenA = screenPointFromCameraCoords(clipped3d[0], width, height);
+    const screenB = screenPointFromCameraCoords(clipped3d[1], width, height);
+    if (!screenA || !screenB) continue;
+
+    const clipped2d = clipLineToRect(
+      screenA,
+      screenB,
+      -marginX,
+      -marginY,
+      width + marginX,
+      height + marginY
+    );
+    if (clipped2d) segments.push(clipped2d);
   }
 
   return segments;
@@ -3410,7 +3469,6 @@ function rowForScene(sceneId) {
 function renderOverviewSectors(layer, width, height) {
   if (!ENABLE_OVERVIEW_SECTORS) return;
   if (currentSceneId !== OVERVIEW_SCENE_ID) return;
-  if (Math.abs(viewer.getPitch()) > 84) return;
 
   const sectors = overviewSectorsByScene[currentSceneId] || [];
   sectors.forEach(sector => {
@@ -3418,7 +3476,7 @@ function renderOverviewSectors(layer, width, height) {
     if (!targetRow) return;
 
     const screenPoints = projectStablePolygon(sector.points, width, height);
-    const outlineSegments = projectStableSegments(sector.points, width, height);
+    const outlineSegments = projectSectorOutlineSegments(sector.points, width, height);
     if (screenPoints.length < 3 && !outlineSegments.length) return;
 
     if (screenPoints.length >= 3) {
