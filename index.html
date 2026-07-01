@@ -1178,12 +1178,12 @@
     border: 1px solid rgba(33,58,33,0.16);
     background: rgba(255,255,255,0.9);
     box-shadow: 0 0 0 3px rgba(81,135,70,0.18);
-    gap: 6px;
+    gap: 7px;
     height: 40px;
-    width: min(360px, calc(100vw - 118px));
-    max-width: min(360px, calc(100vw - 118px));
-    flex-basis: min(360px, calc(100vw - 118px));
-    padding: 0 3px 0 0;
+    width: min(430px, calc(100vw - 118px));
+    max-width: min(430px, calc(100vw - 118px));
+    flex-basis: min(430px, calc(100vw - 118px));
+    padding: 0 4px 0 0;
   }
   .btn-search-lot {
     width: 40px;
@@ -1218,7 +1218,8 @@
     font-weight: 500;
     color: var(--text-primary);
     display: none;
-    width: 218px;
+    width: auto;
+    flex: 1 1 auto;
     min-width: 0;
     -webkit-appearance: none;
     appearance: none;
@@ -1231,26 +1232,36 @@
   }
   .btn-goto-lot {
     border: none;
-    background: var(--brand-green);
+    background: linear-gradient(135deg, var(--brand-green), var(--accent));
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0 12px;
+    padding: 0 14px;
     height: 32px;
     border-radius: 999px;
     cursor: pointer;
-    display: inline-flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    margin-left: 2px;
+    white-space: nowrap;
+    box-shadow: 0 7px 16px rgba(81,135,70,0.24);
     transition: all 0.15s ease;
     animation: fadeInScale 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+  .topbar-search-lot.expanded .btn-goto-lot {
+    display: inline-flex;
+  }
   .btn-goto-lot:hover {
     background: var(--accent-hover);
-    transform: scale(1.02);
+    box-shadow: 0 9px 18px rgba(81,135,70,0.30);
+    transform: translateY(-1px);
+  }
+  .btn-goto-lot:disabled {
+    background: rgba(33,58,33,0.10);
+    color: rgba(33,58,33,0.44);
+    box-shadow: none;
+    cursor: default;
+    transform: none;
   }
   @keyframes fadeInScale {
     from { opacity: 0; transform: scale(0.85); }
@@ -1526,11 +1537,11 @@
       flex-basis: 40px;
     }
     .topbar-search-lot.expanded {
-      gap: 3px;
+      gap: 5px;
       height: 40px;
-      width: min(278px, calc(100vw - 72px));
-      max-width: min(278px, calc(100vw - 72px));
-      flex-basis: min(278px, calc(100vw - 72px));
+      width: min(316px, calc(100vw - 72px));
+      max-width: min(316px, calc(100vw - 72px));
+      flex-basis: min(316px, calc(100vw - 72px));
     }
     .btn-search-lot {
       width: 40px;
@@ -1539,13 +1550,11 @@
     }
     .topbar-search-lot input {
       font-size: 13px;
-      width: 148px;
     }
     .btn-goto-lot {
-      margin-left: 1px;
-      padding: 0 8px;
+      padding: 0 10px;
       height: 30px;
-      font-size: 10px;
+      font-size: 11px;
     }
   }
 
@@ -1864,7 +1873,7 @@
         </svg>
       </button>
       <input type="search" id="lotSearchInput" placeholder="Кадастровый номер" autocomplete="off" inputmode="search">
-      <button id="btnGoToLot" class="btn-goto-lot" style="display: none;" type="button">Перейти</button>
+      <button id="btnGoToLot" class="btn-goto-lot" type="button" disabled>Перейти</button>
     </div>
     <button class="btn-icon btn-sidebar-toggle" id="sidebarToggle" title="Открыть меню" aria-label="Открыть список сцен">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -3197,6 +3206,14 @@ function isStableProjectedSegment(a, b, width, height) {
   return Math.hypot(a.x - b.x, a.y - b.y) <= maxEdge;
 }
 
+function interpolateYawPitch(a, b, t) {
+  const yawDelta = normalizeYaw(b.yaw - a.yaw);
+  return {
+    yaw: normalizeYaw(a.yaw + yawDelta * t),
+    pitch: a.pitch + (b.pitch - a.pitch) * t,
+  };
+}
+
 function projectStablePolygon(points, width, height) {
   const projected = points.map(point => projectPoint(point, width, height));
   if (projected.some(point => !point)) return [];
@@ -3205,14 +3222,33 @@ function projectStablePolygon(points, width, height) {
 }
 
 function projectStableSegments(points, width, height) {
-  const projected = points.map(point => projectPoint(point, width, height));
   const segments = [];
+  const samplesPerEdge = 18;
 
-  for (let i = 0; i < projected.length; i++) {
-    const a = projected[i];
-    const b = projected[(i + 1) % projected.length];
-    if (!isStableProjectedSegment(a, b, width, height)) continue;
-    segments.push([a, b]);
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    let current = [];
+    let previous = null;
+
+    for (let step = 0; step <= samplesPerEdge; step++) {
+      const projected = projectPoint(interpolateYawPitch(a, b, step / samplesPerEdge), width, height);
+      const canUse = isProjectedPointNearViewport(projected, width, height)
+        && (!previous || isStableProjectedSegment(previous, projected, width, height));
+
+      if (canUse) {
+        current.push(projected);
+      } else if (current.length >= 2) {
+        segments.push(current);
+        current = [];
+      } else {
+        current = [];
+      }
+
+      previous = canUse ? projected : null;
+    }
+
+    if (current.length >= 2) segments.push(current);
   }
 
   return segments;
@@ -3397,13 +3433,10 @@ function renderOverviewSectors(layer, width, height) {
       layer.appendChild(polygon);
     }
 
-    outlineSegments.forEach(([a, b]) => {
-      const outline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    outlineSegments.forEach(segment => {
+      const outline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
       outline.setAttribute('class', 'sector-outline');
-      outline.setAttribute('x1', a.x.toFixed(1));
-      outline.setAttribute('y1', a.y.toFixed(1));
-      outline.setAttribute('x2', b.x.toFixed(1));
-      outline.setAttribute('y2', b.y.toFixed(1));
+      outline.setAttribute('points', segment.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
       layer.appendChild(outline);
     });
 
@@ -4690,11 +4723,11 @@ function startIntroMessages() {
       renderLotPolygons();
     }
     if (foundTarget) {
-      btn.style.display = 'inline-flex';
+      btn.disabled = false;
     } else {
       highlightedLotMatch = null;
       renderLotPolygons();
-      btn.style.display = 'none';
+      btn.disabled = true;
     }
   });
 
@@ -4703,7 +4736,7 @@ function startIntroMessages() {
       input.value = '';
       foundTarget = null;
       highlightedLotMatch = null;
-      btn.style.display = 'none';
+      btn.disabled = true;
       renderLotPolygons();
       setSearchOpen(false);
       openBtn.focus();
