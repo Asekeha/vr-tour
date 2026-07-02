@@ -564,7 +564,7 @@
   .sector-label-group:hover .sector-label-bg,
   .sector-label-group:focus .sector-label-bg {
     fill: #ffffff;
-    stroke: rgba(81,135,70,0.46);
+    stroke: rgba(33,58,33,0.22);
   }
   .sector-label-number-bg {
     pointer-events: none;
@@ -602,48 +602,48 @@
   }
   .sector-card-bg,
   .sector-card-arrow {
-    fill: rgba(33,58,33,0.94);
-    stroke: rgba(255,255,255,0.18);
+    fill: rgba(255,255,255,0.96);
+    stroke: rgba(33,58,33,0.14);
     stroke-width: 1;
-    filter: drop-shadow(0 18px 34px rgba(16,35,22,0.28));
+    filter: drop-shadow(0 18px 34px rgba(16,35,22,0.18));
   }
   .sector-card-title {
     pointer-events: none;
-    fill: #ffffff;
+    fill: var(--brand-green-deep);
     font-size: 12px;
     font-weight: 900;
   }
   .sector-card-subtitle {
     pointer-events: none;
-    fill: rgba(255,255,255,0.66);
+    fill: var(--text-muted);
     font-size: 9px;
     font-weight: 700;
   }
   .sector-card-metric-bg {
-    fill: rgba(255,255,255,0.10);
-    stroke: rgba(255,255,255,0.10);
+    fill: rgba(247,244,236,0.72);
+    stroke: rgba(33,58,33,0.10);
     stroke-width: 1;
   }
   .sector-card-metric-label {
     pointer-events: none;
-    fill: rgba(255,255,255,0.72);
+    fill: var(--text-muted);
     font-size: 8px;
     font-weight: 800;
     text-anchor: middle;
   }
   .sector-card-metric-value {
     pointer-events: none;
-    fill: #ffffff;
+    fill: var(--brand-green-deep);
     font-size: 14px;
     font-weight: 900;
     text-anchor: middle;
   }
   .sector-card-dot {
     pointer-events: none;
-    fill: #4eff02;
+    fill: rgba(33,58,33,0.38);
   }
-  .sector-card-dot.reserved { fill: #ffb000; }
-  .sector-card-dot.sold { fill: #ff000a; }
+  .sector-card-dot.reserved,
+  .sector-card-dot.sold { fill: rgba(33,58,33,0.38); }
   .sector-outline-underlay,
   .sector-outline {
     pointer-events: none;
@@ -653,13 +653,13 @@
     vector-effect: non-scaling-stroke;
   }
   .sector-outline-underlay {
-    stroke: rgba(81,135,70,0.76);
-    stroke-width: 8;
+    stroke: transparent;
+    stroke-width: 0;
   }
   .sector-outline {
     stroke: rgba(255,255,255,0.96);
     stroke-width: 4;
-    filter: drop-shadow(0 7px 16px rgba(16,35,22,0.32));
+    filter: none;
   }
   .lot-group-panel {
     position: absolute;
@@ -2143,12 +2143,12 @@
       </svg>
     </button>
 
-    <button class="back-overview-button" id="backToOverviewButton" type="button" title="Вернуться к панораме 400м" aria-label="Вернуться к панораме 400м">
+    <button class="back-overview-button" id="backToOverviewButton" type="button" title="Главный экран" aria-label="Главный экран">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M19 12H5"/>
         <path d="M12 19l-7-7 7-7"/>
       </svg>
-      <span>Назад к 400м</span>
+      <span>Главный экран</span>
     </button>
 
     <!-- Mobile actions -->
@@ -3097,6 +3097,11 @@ function requestUrlForLot(lot) {
   return safeExternalUrl(lot?.link, REQUEST_URL);
 }
 
+function lotDisplayTitle(lot) {
+  const digits = String(lot?.id || lot?.title || '').replace(/\D/g, '');
+  return digits.length >= 4 ? `Участок ${digits.slice(-4)}` : (lot?.title || 'Участок');
+}
+
 function openLotCard(lot) {
   activeLot = lot;
   hidePolygonTooltip();
@@ -3106,11 +3111,12 @@ function openLotCard(lot) {
 
   const status = statusInfo(lot.status);
   const requestUrl = requestUrlForLot(lot);
+  const displayTitle = lotDisplayTitle(lot);
   panel.innerHTML = `
     <div class="lot-card-head">
       <div>
         <div class="lot-card-kicker">Участок</div>
-        <div class="lot-card-title">${escapeHTML(lot.title || 'Участок')}</div>
+        <div class="lot-card-title">${escapeHTML(displayTitle)}</div>
       </div>
       <button class="lot-card-close" id="lotCardClose" type="button" aria-label="Закрыть карточку">&times;</button>
     </div>
@@ -3480,7 +3486,7 @@ function polygonTooltipKey(lot) {
 function setPolygonTooltipContent(tooltip, lot) {
   const status = statusInfo(lot.status);
   tooltip.innerHTML = `
-    <div class="polygon-tooltip-title">${escapeHTML(lot.title)}</div>
+    <div class="polygon-tooltip-title">${escapeHTML(lotDisplayTitle(lot))}</div>
     ${lot.area ? `<div class="polygon-tooltip-row"><span>Площадь:</span><strong>${escapeHTML(lot.area)}</strong></div>` : ''}
     ${lot.price ? `<div class="polygon-tooltip-row"><span>Цена:</span><strong>${escapeHTML(lot.price)}</strong></div>` : ''}
     ${lot.text ? `<div class="polygon-tooltip-row"><span>${escapeHTML(lot.text)}</span></div>` : ''}
@@ -3641,7 +3647,7 @@ function appendSectorMetric(parent, x, y, item) {
   parent.appendChild(label);
 }
 
-function appendSectorLabel(layer, sector, labelPoint, width) {
+function appendSectorLabel(layer, sector, labelPoint, width, polygon = null) {
   const stats = sectorLotStats(sector);
   const labelWidth = 104;
   const labelHeight = 34;
@@ -3737,6 +3743,10 @@ function appendSectorLabel(layer, sector, labelPoint, width) {
   group.addEventListener('keydown', event => {
     if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
   });
+  group.addEventListener('mouseenter', () => polygon?.classList.add('is-hovered'));
+  group.addEventListener('mouseleave', () => polygon?.classList.remove('is-hovered'));
+  group.addEventListener('focus', () => polygon?.classList.add('is-hovered'));
+  group.addEventListener('blur', () => polygon?.classList.remove('is-hovered'));
 
   layer.appendChild(group);
 }
@@ -3754,8 +3764,9 @@ function renderOverviewSectors(layer, width, height) {
     const outlineSegments = projectStableSegments(sector.points, width, height);
     if (screenPoints.length < 3 && !outlineSegments.length) return;
 
+    let polygon = null;
     if (screenPoints.length >= 3) {
-      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
       polygon.setAttribute('class', 'sector-polygon');
       polygon.setAttribute('points', screenPoints.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '));
       polygon.setAttribute('tabindex', '0');
@@ -3780,7 +3791,7 @@ function renderOverviewSectors(layer, width, height) {
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
     if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
 
-    appendSectorLabel(layer, sector, labelPoint, width);
+    appendSectorLabel(layer, sector, labelPoint, width, polygon);
   });
 }
 
