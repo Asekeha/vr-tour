@@ -426,12 +426,12 @@
   .lot-polygon {
     pointer-events: none;
     cursor: pointer;
-    stroke: #4eff02;
-    stroke-width: 2.6;
+    stroke: rgba(255,255,255,0.95);
+    stroke-width: 1.8;
     stroke-opacity: 1;
     vector-effect: non-scaling-stroke;
-    fill: rgba(255,255,255,0);
-    filter: drop-shadow(0 3px 8px rgba(78,255,2,0.22));
+    fill: rgba(81,135,70,0.18);
+    filter: drop-shadow(0 3px 8px rgba(16,35,22,0.18));
     transition: fill 0.15s, stroke-width 0.15s, stroke-opacity 0.15s;
     outline: none;
   }
@@ -441,12 +441,12 @@
     outline: none;
   }
   .lot-polygon.is-hovered {
-    fill: rgba(30,181,3,0.40);
-    stroke-width: 4;
+    fill: rgba(81,135,70,0.34);
+    stroke-width: 2.4;
   }
-  .lot-polygon.lot-reserved { stroke: #ffb000; fill: rgba(255,176,0,0.12); }
+  .lot-polygon.lot-reserved { stroke: rgba(255,255,255,0.95); fill: rgba(255,176,0,0.12); }
   .lot-polygon.lot-reserved.is-hovered { fill: rgba(255,176,0,0.30); }
-  .lot-polygon.lot-sold { stroke: #ff000a; fill: rgba(255,0,10,0.10); }
+  .lot-polygon.lot-sold { stroke: rgba(255,255,255,0.95); fill: rgba(255,0,10,0.10); }
   .lot-polygon.lot-sold.is-hovered { fill: rgba(255,0,10,0.36); }
   .lot-polygon.is-search-match {
     stroke: #f7fff1;
@@ -1671,8 +1671,8 @@
       box-shadow: 0 16px 36px rgba(81,135,70,0.34);
     }
     .lot-polygon {
-      stroke-width: 3.2;
-      stroke-opacity: 0.88;
+      stroke-width: 1.8;
+      stroke-opacity: 0.95;
       filter: drop-shadow(0 1px 4px rgba(33,58,33,0.14));
     }
     .pnlm-hotspot-base.pnlm-scene {
