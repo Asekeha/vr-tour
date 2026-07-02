@@ -424,7 +424,7 @@
     outline: none;
   }
   .lot-polygon {
-    pointer-events: auto;
+    pointer-events: none;
     cursor: pointer;
     stroke: #4eff02;
     stroke-width: 2.6;
@@ -440,20 +440,14 @@
   .lot-polygon:active {
     outline: none;
   }
-  .lot-polygon.is-hovered,
-  .lot-polygon:hover,
-  .lot-polygon:focus {
+  .lot-polygon.is-hovered {
     fill: rgba(30,181,3,0.40);
     stroke-width: 4;
   }
   .lot-polygon.lot-reserved { stroke: #ffb000; fill: rgba(255,176,0,0.12); }
-  .lot-polygon.lot-reserved.is-hovered,
-  .lot-polygon.lot-reserved:hover,
-  .lot-polygon.lot-reserved:focus { fill: rgba(255,176,0,0.30); }
+  .lot-polygon.lot-reserved.is-hovered { fill: rgba(255,176,0,0.30); }
   .lot-polygon.lot-sold { stroke: #ff000a; fill: rgba(255,0,10,0.10); }
-  .lot-polygon.lot-sold.is-hovered,
-  .lot-polygon.lot-sold:hover,
-  .lot-polygon.lot-sold:focus { fill: rgba(255,0,10,0.36); }
+  .lot-polygon.lot-sold.is-hovered { fill: rgba(255,0,10,0.36); }
   .lot-polygon.is-search-match {
     stroke: #f7fff1;
     stroke-width: 4.5;
@@ -532,7 +526,7 @@
     dominant-baseline: central;
   }
   .sector-polygon {
-    pointer-events: auto;
+    pointer-events: none;
     cursor: pointer;
     fill: rgba(81,135,70,0.03);
     stroke: transparent;
@@ -547,6 +541,10 @@
   .sector-polygon.is-hovered {
     fill: rgba(81,135,70,0.38);
     outline: none;
+  }
+  body.editor-mode .lot-polygon,
+  body.editor-mode .sector-polygon {
+    pointer-events: auto;
   }
   .sector-label-group {
     pointer-events: auto;
@@ -602,29 +600,36 @@
   }
   .sector-card-bg,
   .sector-card-arrow {
-    fill: rgba(255,255,255,0.95);
-    stroke: rgba(33,58,33,0.16);
-    stroke-width: 1;
-    filter: drop-shadow(0 24px 64px rgba(16,35,22,0.24));
+    fill: rgba(230,227,220,0.96);
+    stroke: none;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.08));
   }
   .sector-card-title {
     pointer-events: none;
-    fill: var(--brand-green-deep);
+    fill: #1b3322;
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 700;
+    stroke: none;
   }
   .sector-card-subtitle {
     pointer-events: none;
-    fill: var(--text-muted);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .sector-card-metric-bg {
-    fill: rgba(247,244,236,0.72);
-    stroke: rgba(33,58,33,0.10);
+    stroke: rgba(33,58,33,0.12);
     stroke-width: 1;
+  }
+  .sector-card-row-label {
+    pointer-events: none;
+    fill: #5c645e;
+    font-size: 12px;
+    font-weight: 400;
+    stroke: none;
+  }
+  .sector-card-row-value {
+    pointer-events: none;
+    fill: #1b3322;
+    font-size: 12px;
+    font-weight: 700;
+    text-anchor: end;
+    stroke: none;
   }
   .sector-card-metric-label {
     pointer-events: none;
@@ -2250,6 +2255,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.0843555',
     [COL.sceneLng]: '71.23892166666667',
     [COL.sceneAltitude]: '400',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '-35',
+    [COL.startHfov]: '120',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2264,6 +2272,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.09211383333334',
     [COL.sceneLng]: '71.22727166666667',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2278,6 +2289,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.08694166666667',
     [COL.sceneLng]: '71.22905333333334',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2292,6 +2306,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.09383616666667',
     [COL.sceneLng]: '71.232195',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2306,6 +2323,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.08936116666667',
     [COL.sceneLng]: '71.220045',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2320,6 +2340,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.08447216666666',
     [COL.sceneLng]: '71.23220333333333',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2334,6 +2357,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.08753883333333',
     [COL.sceneLng]: '71.21543833333334',
     [COL.sceneAltitude]: '405',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '-35',
+    [COL.startHfov]: '120',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2348,6 +2374,9 @@ const LOCAL_TOUR_ROWS = [
     [COL.sceneLat]: '51.08692783333333',
     [COL.sceneLng]: '71.22398666666666',
     [COL.sceneAltitude]: '250',
+    [COL.startYaw]: '0',
+    [COL.startPitch]: '0',
+    [COL.startHfov]: '100',
     [COL.headingOffset]: '0',
     [COL.pitchOffset]: '0',
     [COL.lotRadiusM]: '1600',
@@ -2383,6 +2412,7 @@ const ENABLE_OVERVIEW_SECTORS = true;
 const START_SCENE_ID = 'karajar-20260630-7';
 const OVERVIEW_SCENE_ID = 'karajar-20260630-7';
 const CURRENT_SCENE_STORAGE_KEY = 'landjer-vr-tour-current-scene';
+const DEFAULT_SCENE_START_VIEW = { yaw: 0, pitch: 0, hfov: 100 };
 const SCENE_START_VIEWS = {
   [OVERVIEW_SCENE_ID]: { yaw: 0, pitch: -35, hfov: 120 },
 };
@@ -2499,6 +2529,9 @@ function fetchSheetDataOnce(attempt) {
 function parseSheetResponse(data) {
   const tableRows = data?.table?.rows || [];
   const colHeaders = (data?.table?.cols || []).map(col => normalizeHeader(col.label));
+  if (colHeaders[0]?.startsWith('https://docs.google.com/spreadsheets')) {
+    colHeaders[0] = COL.id;
+  }
   const hasColumnHeaders = colHeaders.some(Boolean);
   if (!tableRows.length) throw new Error('Таблица пустая или содержит только заголовки');
 
@@ -2898,7 +2931,10 @@ function sceneStartViewFromRow(row) {
   const startYaw = parseNumberValue(row?.[COL.startYaw]);
   const startPitch = parseNumberValue(row?.[COL.startPitch]);
   const startHfov = parseNumberValue(row?.[COL.startHfov]);
-  const view = {};
+  const view = {
+    ...DEFAULT_SCENE_START_VIEW,
+    ...(SCENE_START_VIEWS[row?.[COL.id]] || {}),
+  };
   if (Number.isFinite(startYaw)) view.yaw = startYaw;
   if (Number.isFinite(startPitch)) view.pitch = startPitch;
   if (Number.isFinite(startHfov) && startHfov > 0) view.hfov = startHfov;
@@ -3586,6 +3622,19 @@ function lotUnderScreenPoint(point, width, height) {
   return null;
 }
 
+function sectorUnderScreenPoint(point, width, height) {
+  if (!ENABLE_OVERVIEW_SECTORS) return null;
+  if (currentSceneId !== OVERVIEW_SCENE_ID) return null;
+  const sectors = overviewSectorsByScene[currentSceneId] || [];
+  for (const sector of sectors) {
+    const screenPoints = projectStablePolygon(sector.points, width, height);
+    if (screenPoints.length >= 3 && isPointInPolygon(point, screenPoints)) {
+      return sector;
+    }
+  }
+  return null;
+}
+
 function renderLotGroupMarkers(layer, width, height) {
   const groups = (lotGroupsByScene[currentSceneId] || []).filter(group => group.lots.some(visibleLot));
   groups.forEach(group => {
@@ -3660,6 +3709,22 @@ function appendSectorMetric(parent, x, y, item) {
   parent.appendChild(label);
 }
 
+function appendSectorInfoRow(parent, x, y, valueX, labelText, valueText) {
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  label.setAttribute('class', 'sector-card-row-label');
+  label.setAttribute('x', x.toFixed(1));
+  label.setAttribute('y', y.toFixed(1));
+  label.textContent = labelText;
+  parent.appendChild(label);
+
+  const value = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  value.setAttribute('class', 'sector-card-row-value');
+  value.setAttribute('x', valueX.toFixed(1));
+  value.setAttribute('y', y.toFixed(1));
+  value.textContent = String(valueText);
+  parent.appendChild(value);
+}
+
 function appendSectorLabel(layer, sector, labelPoint, width, polygon = null) {
   const stats = sectorLotStats(sector);
   const labelWidth = 104;
@@ -3667,8 +3732,8 @@ function appendSectorLabel(layer, sector, labelPoint, width, polygon = null) {
   const labelX = Math.max(8, Math.min(width - labelWidth - 8, labelPoint.x - labelWidth / 2));
   const labelY = Math.max(12, labelPoint.y - labelHeight / 2);
   const centerX = labelX + labelWidth / 2;
-  const cardWidth = 190;
-  const cardHeight = 100;
+  const cardWidth = 255;
+  const cardHeight = 125;
   const cardX = Math.max(8, Math.min(width - cardWidth - 8, centerX - cardWidth / 2));
   const cardY = Math.max(12, labelY - cardHeight - 14);
   const number = sectorDisplayNumber(sector);
@@ -3691,7 +3756,7 @@ function appendSectorLabel(layer, sector, labelPoint, width, polygon = null) {
   cardBg.setAttribute('y', cardY.toFixed(1));
   cardBg.setAttribute('width', cardWidth);
   cardBg.setAttribute('height', cardHeight);
-  cardBg.setAttribute('rx', '8');
+  cardBg.setAttribute('rx', '24');
   hoverCard.appendChild(cardBg);
 
   const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -3702,23 +3767,24 @@ function appendSectorLabel(layer, sector, labelPoint, width, polygon = null) {
 
   const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   title.setAttribute('class', 'sector-card-title');
-  title.setAttribute('x', (cardX + 14).toFixed(1));
-  title.setAttribute('y', (cardY + 23).toFixed(1));
+  title.setAttribute('x', (cardX + 20).toFixed(1));
+  title.setAttribute('y', (cardY + 28).toFixed(1));
   title.textContent = sector.title;
   hoverCard.appendChild(title);
 
-  const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const subtitle = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   subtitle.setAttribute('class', 'sector-card-subtitle');
-  subtitle.setAttribute('x', (cardX + 14).toFixed(1));
-  subtitle.setAttribute('y', (cardY + 39).toFixed(1));
-  subtitle.textContent = 'Статистика участков';
+  subtitle.setAttribute('x1', (cardX + 20).toFixed(1));
+  subtitle.setAttribute('y1', (cardY + 43).toFixed(1));
+  subtitle.setAttribute('x2', (cardX + cardWidth - 20).toFixed(1));
+  subtitle.setAttribute('y2', (cardY + 43).toFixed(1));
   hoverCard.appendChild(subtitle);
 
   [
-    { key: 'available', label: 'Свободно', value: stats.available },
-    { key: 'reserved', label: 'Бронь', value: stats.reserved },
-    { key: 'sold', label: 'Продано', value: stats.sold },
-  ].forEach((item, index) => appendSectorMetric(hoverCard, cardX + 14 + index * 58, cardY + 48, item));
+    ['Свободно:', stats.available],
+    ['Забронировано:', stats.reserved],
+    ['Продано:', stats.sold],
+  ].forEach((row, index) => appendSectorInfoRow(hoverCard, cardX + 20, cardY + 67 + index * 21, cardX + cardWidth - 20, row[0], row[1]));
 
   group.appendChild(hoverCard);
 
@@ -3769,6 +3835,8 @@ function renderOverviewSectors(layer, width, height) {
   if (currentSceneId !== OVERVIEW_SCENE_ID) return;
 
   const sectors = overviewSectorsByScene[currentSceneId] || [];
+  const sectorLabels = [];
+
   sectors.forEach(sector => {
     const targetRow = rowForScene(sector.sceneId);
     if (!targetRow) return;
@@ -3785,6 +3853,9 @@ function renderOverviewSectors(layer, width, height) {
       polygon.setAttribute('tabindex', '0');
       polygon.setAttribute('role', 'button');
       polygon.setAttribute('aria-label', `${sector.title}. Перейти к панораме ${targetRow[COL.title] || sector.sceneId}`);
+      if (lastPolygonPointer.inside && isPointInPolygon(lastPolygonPointer, screenPoints)) {
+        polygon.classList.add('is-hovered');
+      }
       onSectorActivate(polygon, () => loadScene(sector.sceneId));
       polygon.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') loadScene(sector.sceneId);
@@ -3804,6 +3875,10 @@ function renderOverviewSectors(layer, width, height) {
     const labelPoint = projectPoint(polygonYawPitchCenter(sector.points), width, height);
     if (!isProjectedPointNearViewport(labelPoint, width, height)) return;
 
+    sectorLabels.push({ sector, labelPoint, polygon });
+  });
+
+  sectorLabels.forEach(({ sector, labelPoint, polygon }) => {
     appendSectorLabel(layer, sector, labelPoint, width, polygon);
   });
 }
@@ -3929,6 +4004,7 @@ function renderLotPolygons() {
     }
 
     onActivate(polygon, () => openLotCard(lot));
+    enableOverlayPan(polygon);
     polygon.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') openLotCard(lot);
     });
@@ -4125,7 +4201,6 @@ function buildConfig(rows) {
       panorama: normalizeImageUrl(row[COL.imageUrl]),
       title: escapeHTML(row[COL.title] || id),
       hotSpots: hotspots,
-      ...(SCENE_START_VIEWS[id] || {}),
       ...sceneStartViewFromRow(row),
     };
   });
@@ -4140,6 +4215,8 @@ function buildConfig(rows) {
       hfov: 100,
       minHfov: 12,
       maxHfov: 120,
+      mouseZoom: false,
+      friction: 1,
       hotSpotDebug: new URLSearchParams(location.search).has('debug'),
     },
     scenes,
@@ -4519,8 +4596,12 @@ function onActivate(element, handler) {
 
 let activeSectorDrag = null;
 let suppressSectorClick = false;
+const OVERLAY_DRAG_SPEED = 0.055;
+const STABLE_WHEEL_ZOOM_SPEED = 0.032;
 
 function beginSectorDrag(event) {
+  if (!viewer) return;
+  if (event.button != null && event.button !== 0) return;
   activeSectorDrag = {
     pointerId: event.pointerId,
     x: event.clientX,
@@ -4550,8 +4631,8 @@ function moveSectorDrag(event) {
   activeSectorDrag.lastX = event.clientX;
   activeSectorDrag.lastY = event.clientY;
 
-  const nextYaw = viewer.getYaw() - dx * 0.12;
-  const nextPitch = Math.max(-89, Math.min(89, viewer.getPitch() + dy * 0.12));
+  const nextYaw = viewer.getYaw() - dx * OVERLAY_DRAG_SPEED;
+  const nextPitch = Math.max(-89, Math.min(89, viewer.getPitch() + dy * OVERLAY_DRAG_SPEED));
   viewer.lookAt(nextPitch, nextYaw, viewer.getHfov(), 0);
 }
 
@@ -4566,6 +4647,34 @@ function endSectorDrag() {
 document.addEventListener('pointermove', moveSectorDrag, { passive: false });
 document.addEventListener('pointerup', endSectorDrag);
 document.addEventListener('pointercancel', endSectorDrag);
+
+function normalizedWheelDelta(event) {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * window.innerHeight;
+  return event.deltaY;
+}
+
+function handleStableWheel(event) {
+  if (!viewer) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const currentHfov = viewer.getHfov();
+  const delta = Math.max(-160, Math.min(160, normalizedWheelDelta(event)));
+  const nextHfov = Math.max(12, Math.min(120, currentHfov + delta * STABLE_WHEEL_ZOOM_SPEED));
+  viewer.setHfov(nextHfov, 0);
+}
+
+function enableOverlayPan(element) {
+  if (!element) return;
+  element.addEventListener('pointerdown', event => {
+    beginSectorDrag(event);
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch (err) {
+      // Some browsers can reject pointer capture for synthetic events.
+    }
+  }, { passive: true });
+}
 
 function onSectorActivate(element, handler) {
   if (!element) return;
@@ -4590,12 +4699,7 @@ function onSectorActivate(element, handler) {
   }, { passive: true });
 
   element.addEventListener('wheel', event => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!viewer) return;
-    const currentHfov = viewer.getHfov();
-    const nextHfov = Math.max(12, Math.min(120, currentHfov + event.deltaY * 0.16));
-    viewer.setHfov(nextHfov, 0);
+    handleStableWheel(event);
   }, { passive: false });
 
   element.addEventListener('pointerup', event => {
@@ -4931,7 +5035,9 @@ if (viewerWrap) {
       || event.target.closest('.coords-badge')
       || event.target.closest('.counter-badge')
       || event.target.closest('.topbar')
-      || event.target.closest('.sidebar'));
+      || event.target.closest('.sidebar')
+      || event.target.closest('.pnlm-control')
+      || event.target.closest('.pnlm-controls-container'));
   }
 
   function addDrawingPointFromEvent(event) {
@@ -4972,6 +5078,42 @@ if (viewerWrap) {
     }
   }
 
+  let lotClickStart = { x: 0, y: 0 };
+
+  function handleLotClickDown(event) {
+    if (isEditorMode) return;
+    if (isEditorPointerIgnored(event)) return;
+    lotClickStart = { x: event.clientX, y: event.clientY };
+  }
+
+  function handleLotClickUp(event, maxDistance = 5) {
+    if (isEditorMode) return;
+    if (isEditorPointerIgnored(event)) return;
+    const dx = event.clientX - lotClickStart.x;
+    const dy = event.clientY - lotClickStart.y;
+    if (Math.hypot(dx, dy) < maxDistance) {
+      const rect = viewerWrap.getBoundingClientRect();
+      const point = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+
+      // Check if clicked on a lot polygon
+      const hovered = lotUnderScreenPoint(point, rect.width, rect.height);
+      if (hovered) {
+        openLotCard(hovered.lot);
+        return;
+      }
+
+      // Check if clicked on an overview sector
+      const hoveredSector = sectorUnderScreenPoint(point, rect.width, rect.height);
+      if (hoveredSector) {
+        loadScene(hoveredSector.sceneId);
+        return;
+      }
+    }
+  }
+
   viewerWrap.addEventListener('mousemove', (e) => {
     isPolygonTooltipHovered = false;
     const rect = viewerWrap.getBoundingClientRect();
@@ -4984,7 +5126,19 @@ if (viewerWrap) {
       inside: true,
     };
     const hovered = lotUnderScreenPoint(point, rect.width, rect.height);
-    isLotPolygonHovered = Boolean(hovered);
+    const hoveredSector = sectorUnderScreenPoint(point, rect.width, rect.height);
+    isLotPolygonHovered = Boolean(hovered) || Boolean(hoveredSector);
+
+    // Set custom pointer cursor when hovering over active regions (lots/sectors)
+    const panoramaContainer = document.getElementById('panorama');
+    if (panoramaContainer) {
+      if (isLotPolygonHovered && e.buttons === 0) {
+        panoramaContainer.style.cursor = 'pointer';
+      } else {
+        panoramaContainer.style.cursor = '';
+      }
+    }
+
     if (hovered) {
       keepPolygonTooltipOpen();
     } else if (activePolygonTooltipKey) {
@@ -4997,6 +5151,8 @@ if (viewerWrap) {
     isPolygonTooltipHovered = false;
     isLotPolygonHovered = false;
     hidePolygonTooltip();
+    const panoramaContainer = document.getElementById('panorama');
+    if (panoramaContainer) panoramaContainer.style.cursor = '';
   });
 
   viewerWrap.addEventListener('pointerdown', (e) => {
@@ -5006,20 +5162,29 @@ if (viewerWrap) {
     }
     if (e.pointerType === 'mouse') return;
     handleEditorPointerDown(e);
+    handleLotClickDown(e);
   }, { passive: true });
 
   viewerWrap.addEventListener('pointerup', (e) => {
     if (e.pointerType === 'mouse') return;
     handleEditorPointerUp(e, 8);
+    handleLotClickUp(e, 8);
   }, { passive: true });
 
   viewerWrap.addEventListener('mousedown', (e) => {
     handleEditorPointerDown(e);
+    handleLotClickDown(e);
   });
 
   viewerWrap.addEventListener('mouseup', (e) => {
     handleEditorPointerUp(e);
+    handleLotClickUp(e);
   });
+
+  viewerWrap.addEventListener('wheel', (e) => {
+    if (isEditorPointerIgnored(e)) return;
+    handleStableWheel(e);
+  }, { passive: false });
 }
 
 // Скрытие загрузки
@@ -5221,16 +5386,20 @@ function startIntroMessages() {
   const introTimer = startIntroMessages();
 
   try {
-    const rows = await fetchSheetData().catch(err => {
+    let rows = await fetchSheetData().catch(err => {
       console.warn('Таблица разработчика не загружена, использую локальную копию:', err);
       return LOCAL_TOUR_ROWS;
     });
     await loadAutoLotSources();
 
     if (getSceneRows(rows).length === 0) {
-      if (introTimer) clearInterval(introTimer);
-      showError('Сцены не обнаружены. Проверьте локальные настройки LOCAL_TOUR_ROWS.');
-      return;
+      console.warn('В Google Таблице не найдены сцены, использую локальную копию.');
+      rows = LOCAL_TOUR_ROWS;
+      if (getSceneRows(rows).length === 0) {
+        if (introTimer) clearInterval(introTimer);
+        showError('Сцены не обнаружены. Проверьте локальные настройки LOCAL_TOUR_ROWS.');
+        return;
+      }
     }
 
     renderSidebar(rows);
